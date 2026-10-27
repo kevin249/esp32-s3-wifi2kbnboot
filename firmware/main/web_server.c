@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -84,8 +85,8 @@ static bool query(httpd_req_t *r, const char *key, char *out, size_t capacity) {
 }
 static bool iso_entry(const char *name) {
   size_t n = strlen(name);
-  return (n > 4 && !strcmp(name + n - 4, ".iso")) ||
-         (n > 8 && !strcmp(name + n - 8, ".iso.000"));
+  return (n > 4 && !strcasecmp(name + n - 4, ".iso")) ||
+         (n > 8 && !strcasecmp(name + n - 8, ".iso.000"));
 }
 static esp_err_t manifest(httpd_req_t *r) {
   storage_public_t s;

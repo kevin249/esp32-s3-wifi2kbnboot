@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 static SemaphoreHandle_t mutex;
 static sd_media_state_t state;
@@ -163,6 +164,10 @@ esp_err_t sd_media_init(void) {
         .au_size = state.file_size >= 256ULL * 1024 * 1024 ? 32768 : 4096};
     if (f_mkfs(image_drive_name, &options, work, sizeof(work)) != FR_OK)
       return ESP_FAIL;
+    if (f_mount(files_fs, image_drive_name, 1) != FR_OK || files_fs->fs_type != FS_FAT16)
+      return ESP_FAIL;
+    if (f_mount(NULL, image_drive_name, 0) != FR_OK)
+      return ESP_FAIL;
     if (f_sync(&image) != FR_OK || f_close(&image) != FR_OK)
       return ESP_FAIL;
     image_open = false;
@@ -243,8 +248,8 @@ esp_err_t sd_media_select_iso(const char *name) {
     goto done;
   }
   size_t length = strlen(name);
-  bool split = length > 8 && !strcmp(name + length - 8, ".iso.000");
-  if (!split && (length < 4 || strcmp(name + length - 4, ".iso"))) {
+  bool split = length > 8 && !strcasecmp(name + length - 8, ".iso.000");
+  if (!split && (length < 4 || strcasecmp(name + length - 4, ".iso"))) {
     err = ESP_ERR_INVALID_ARG;
     goto done;
   }
@@ -256,7 +261,7 @@ esp_err_t sd_media_select_iso(const char *name) {
   for (unsigned i = 0; i < (split ? W2B_ISO_MAX_PARTS : 1); ++i) {
     snprintf(part_name, sizeof(part_name), "%s", name);
     if (split)
-      snprintf(part_name + length - 3, 4, "%03u", i);
+      snprintf(part_name + length - 3, 4, "%03u", i % 1000);
     snprintf(path, sizeof(path), "%s/iso/%s", sd_drive_name, part_name);
     FRESULT r = f_stat(path, &info);
     if (r == FR_NO_FILE) {

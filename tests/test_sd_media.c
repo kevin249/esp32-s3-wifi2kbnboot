@@ -61,7 +61,12 @@ int main(void){
     assert(state.sd_ready&&state.files_ready&&state.host_owner);
     BYTE sector[512];assert(sd_media_read(1,0,sector,512)==ESP_OK);
     assert(sector[510]==0x55&&sector[511]==0xAA);uint32_t partition=le32(sector+454);assert(partition>0);
-    assert(sd_media_read(1,(uint64_t)partition*512,sector,512)==ESP_OK);assert(!memcmp(sector+54,"FAT16   ",8));
+    assert(sd_media_read(1,(uint64_t)partition*512,sector,512)==ESP_OK);
+    unsigned reserved=sector[14]|(sector[15]<<8), roots=sector[17]|(sector[18]<<8), fats=sector[22]|(sector[23]<<8);
+    uint32_t sectors=sector[19]|(sector[20]<<8);if(!sectors)sectors=le32(sector+32);
+    assert(sector[13]&&fats);
+    uint32_t clusters=(sectors-reserved-sector[16]*fats-(roots*32+511)/512)/sector[13];
+    assert(clusters>=4085&&clusters<65525); /* FAT类型由簇数判断，不依赖可选的卷标签字符串。 */
     assert(!sd_media_web_begin(true));assert(sd_media_owner(false)==ESP_OK);
     assert(sd_media_web_begin(true));assert(sd_media_owner(true)==ESP_ERR_INVALID_STATE);sd_media_web_end();
     BYTE bios[8192];for(unsigned i=0;i<sizeof(bios);++i)bios[i]=i;
