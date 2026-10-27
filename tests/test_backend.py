@@ -96,6 +96,9 @@ class BackendTests(unittest.TestCase):
         with self.assertRaises(OwnershipError): self.transfer.read(lease["session"], lease["version"], 0, 512)
         new = self.transfer.attach()
         self.assertNotEqual(new["version"], lease["version"])
+        # 上次释放响应丢失后的重试，不得撤销网页已经发出的交还指令。
+        self.transfer.release(lease["session"])
+        self.assertEqual(self.transfer.info()["mode"], "host")
         current = self.transfer.claim("board")
         self.assertNotEqual(current["session"], lease["session"])
 

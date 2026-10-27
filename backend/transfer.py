@@ -62,7 +62,6 @@ class TransferDisk:
     def release(self, session: str):
         with self.lock:
             if self.session is None:
-                self.mode = "server"
                 return self.info()
             self._check(session, self.version)
             self.owner = self.session = None
