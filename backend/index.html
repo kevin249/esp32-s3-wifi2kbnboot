@@ -1,26 +1,96 @@
 <!doctype html>
-<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Wi-Fi 虚拟启动盘</title>
-<style>body{font:16px system-ui;max-width:760px;margin:48px auto;padding:0 20px;background:#f5f7fa;color:#172b4d}section{background:white;padding:24px;border-radius:12px;margin:20px 0}input,button{font:inherit;padding:10px;margin:8px 0}input[type=password]{width:90%}button{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}small{display:block;line-height:1.7;color:#526174}</style>
-<h1>Wi-Fi 虚拟启动盘</h1>
-<section><label>访问令牌 <input id="token" type="password" autocomplete="off"></label><button id="status">读取镜像状态</button><pre id="output">请输入服务访问令牌。</pre></section>
-<section><h2>添加 BIOS 或其他文件</h2><p>文件写入新版本镜像的 BIOS 目录，受控主机继续读取旧版本，直到刷新虚拟盘。</p>
-<input id="file" type="file"><br><label><input id="activate" type="checkbox">上传成功后刷新虚拟盘</label><br><button id="upload">上传文件</button>
-<small>刷新会让整个 USB 复合设备短暂重新连接，包括键鼠。正在启动、复制文件或刷 BIOS 时不要刷新。镜像第一分区需为 FAT32。</small></section>
-<section><h2>让受控主机看到新文件</h2><button id="refresh">刷新虚拟盘</button><small>设备收到请求并等待读取空闲后重新连接。若当前处于 Ventoy 菜单，需要重新进入或重新启动以刷新列表。后端状态不代表设备已完成刷新。</small></section>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>远程键鼠与双逻辑盘</title>
+<style>
+:root{font:16px system-ui;color:#182a43;background:#f2f5fa}body{max-width:1120px;margin:32px auto;padding:0 20px}h1{margin-bottom:6px}h2{font-size:20px;margin-top:0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}section{background:white;padding:22px;border-radius:14px;margin:18px 0;box-shadow:0 4px 18px #1e345008}.grid section{margin:0}input,button{font:inherit;padding:9px 12px;margin:5px 5px 5px 0;border:1px solid #c6cfdd;border-radius:7px}button{cursor:pointer;background:#f5f8ff;color:#173b73}button:hover{background:#e6efff}button:disabled{opacity:.5;cursor:wait}input[type=password]{width:min(80%,480px)}p,small{line-height:1.7}small,.muted{color:#52647c}.danger{color:#9e2929;background:#fff5f5}.notice{padding:12px;border-radius:8px;background:#edf3ff;white-space:pre-wrap;overflow-wrap:anywhere}#library button,#files button{display:block;text-align:left;max-width:100%;overflow-wrap:anywhere}#keyboard{min-height:48px;border:2px dashed #a5b7ce;padding:16px;border-radius:10px;outline:none}#keyboard:focus{border-color:#2468d4;background:#edf4ff}#mouse{height:150px;display:grid;place-items:center;border:1px solid #bdcde2;border-radius:10px;background:#f1f6fd;touch-action:none;user-select:none;cursor:crosshair}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}@media(max-width:800px){.grid{grid-template-columns:1fr}}#message{min-height:24px}
+</style></head><body>
+<h1>远程键鼠与双逻辑盘</h1><p class="muted">一个只读 ISO 光驱，一个可读写文件盘，通过同一根 USB 连接受控主机。</p>
+<section><label>访问令牌 <input id="token" type="password" autocomplete="off"></label><button id="connect">连接后端</button><div id="status" class="notice">请输入访问令牌。</div><p id="message" role="status"></p></section>
+<div class="grid">
+<section><h2>ISO 虚拟光驱</h2><p>浏览服务器配置的 ISO 目录，选择后直接挂载，不需要 Ventoy。</p><div class="row"><button id="root">根目录</button><button id="up">上一级</button><button id="eject">弹出 ISO</button></div><small id="path"></small><div id="library"></div><small>挂载或弹出会让整个 USB 设备短暂重连，键鼠也会受到影响。不要在安装或文件写入期间切换。</small></section>
+<section><h2>普通文件盘 · 双向传输</h2><p>先在受控主机<strong>安全弹出文件盘</strong>，再取回到服务器，随后可上传 BIOS 或下载主机写入的文件。</p><button id="take">从受控主机取回文件盘</button><button id="attach">交还受控主机</button><hr><input id="uploadFile" type="file"><button id="upload">上传到文件盘</button><button id="listFiles">查看文件</button><div id="files"></div><small>文件盘由服务自动创建。主机使用期间禁止服务器修改文件系统；支持根目录文件上传和下载。</small></section>
+<section><h2>键盘模拟</h2><div id="keyboard" tabindex="0">点击此处后输入，按键会发送到受控主机。</div><button id="release">释放全部按键</button><button id="cad">Ctrl + Alt + Delete</button><small>关闭页面或失去焦点时释放按键。组合键可能先被本机系统截获；上方按钮可以发送指定组合键。</small></section>
+<section><h2>鼠标模拟</h2><div id="mouse">在这里移动、点击和滚动</div><button id="mouseRelease">释放鼠标按钮</button><small>相对鼠标模式，支持左键、右键、中键和滚轮。</small></section>
+</div>
+<section><h2>主机按键</h2><button id="pwr">短按 PWR · 200毫秒</button><button id="reset" class="danger">按 RESET · 200毫秒</button><button id="hold" class="danger">长按 PWR · 5秒</button><small>GPIO 默认禁用。先在固件配置引脚、有效电平并接好隔离驱动电路。长按通常用于强制关机，可能丢失未保存数据。</small></section>
 <script>
 const el=id=>document.getElementById(id);
-async function api(path, options={}) {
-  const response=await fetch(path,{...options,headers:{Authorization:'Bearer '+el('token').value,...options.headers}});
-  const body=await response.json();
-  if(!response.ok) throw new Error(body.error||response.status);
-  return body;
+let connected=false,currentPath='';
+async function api(path,options={}){
+ const response=await fetch(path,{...options,headers:{Authorization:'Bearer '+el('token').value,...options.headers}});
+ const type=response.headers.get('Content-Type')||'';
+ if(!response.ok){const error=type.includes('json')?await response.json():{};throw new Error(error.error||('操作失败：'+response.status));}
+ return type.includes('json')?response.json():response.blob();
 }
-async function perform(action){try{el('output').textContent='处理中……';el('output').textContent=JSON.stringify(await action(),null,2)}catch(e){el('output').textContent=e.message}}
-el('status').onclick=()=>perform(()=>api('/api/manifest'));
-el('refresh').onclick=()=>perform(()=>api('/api/activate',{method:'POST',body:new Uint8Array()}));
-el('upload').onclick=()=>perform(async()=>{
-  const file=el('file').files[0];if(!file) throw new Error('请先选择文件');
-  return api('/api/files?name='+encodeURIComponent(file.name)+'&activate='+(el('activate').checked?'1':'0'),{method:'POST',body:file});
+const post=(path,body={})=>api(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+async function perform(action){try{el('message').textContent='处理中……';await action();el('message').textContent='操作已提交。';}catch(e){el('message').textContent=e.message;}}
+async function status(){
+ const data=await api('/api/manifest');connected=true;
+ const transfer=data.transfer;
+ el('status').textContent='后端已选择的 ISO：'+(data.iso?data.iso.name:'未挂载')+'\n文件盘：'+
+  (transfer.owned?(transfer.mode==='server'?'等待设备释放，请稍候':'受控主机使用中'):
+  transfer.mode==='server'?'服务器使用中，可上传或下载':'等待设备领取')+'\n上述为后端状态，USB 重新连接可能稍后完成。';
+ return data;
+}
+async function browse(path=''){
+ const data=await api('/api/library?path='+encodeURIComponent(path));currentPath=data.path==='.'?'':data.path;
+ el('path').textContent='当前目录：/'+currentPath;el('library').replaceChildren();
+ for(const item of data.items){
+  const button=document.createElement('button');button.textContent=(item.directory?'目录：':'挂载 ISO：')+item.name;
+  button.onclick=()=>perform(async()=>{if(item.directory)await browse(item.path);else{button.disabled=true;try{await post('/api/mount',{path:item.path});await status();}finally{button.disabled=false;}}});
+  el('library').append(button);
+ }
+ if(!data.items.length)el('library').textContent='目录中没有 ISO 或子目录。';
+}
+async function files(){
+ const data=await api('/api/transfer/files');el('files').replaceChildren();
+ for(const name of data.files){
+  const button=document.createElement('button');button.textContent='下载：'+name;
+  button.onclick=()=>perform(async()=>{const blob=await api('/api/transfer/download?name='+encodeURIComponent(name));const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
+  el('files').append(button);
+ }
+ if(!data.files.length)el('files').textContent='根目录暂无文件。';
+}
+el('connect').onclick=()=>perform(async()=>{await status();await browse();});
+el('root').onclick=()=>perform(()=>browse());
+el('up').onclick=()=>perform(()=>browse(currentPath.split('/').slice(0,-1).join('/')));
+el('eject').onclick=()=>perform(async()=>{await post('/api/eject');await status();});
+el('take').onclick=()=>perform(async()=>{await post('/api/transfer/take');await status();});
+el('attach').onclick=()=>perform(async()=>{await post('/api/transfer/attach');el('files').replaceChildren();await status();});
+el('listFiles').onclick=()=>perform(files);
+el('upload').onclick=()=>perform(async()=>{const file=el('uploadFile').files[0];if(!file)throw new Error('请选择文件');await api('/api/transfer/upload?name='+encodeURIComponent(file.name),{method:'POST',body:file});await files();await status();});
+setInterval(()=>{if(connected)status().catch(e=>{el('status').textContent=e.message;});},2500);
+
+const pressed=new Set(),modifiers=new Set();let hidChain=Promise.resolve();
+const special={Enter:40,Escape:41,Backspace:42,Tab:43,Space:44,Minus:45,Equal:46,BracketLeft:47,BracketRight:48,Backslash:49,Semicolon:51,Quote:52,Backquote:53,Comma:54,Period:55,Slash:56,CapsLock:57,PrintScreen:70,ScrollLock:71,Pause:72,Insert:73,Home:74,PageUp:75,Delete:76,End:77,PageDown:78,ArrowRight:79,ArrowLeft:80,ArrowDown:81,ArrowUp:82,NumLock:83,NumpadDivide:84,NumpadMultiply:85,NumpadSubtract:86,NumpadAdd:87,NumpadEnter:88,NumpadDecimal:99};
+const modifier={ControlLeft:1,ShiftLeft:2,AltLeft:4,MetaLeft:8,ControlRight:16,ShiftRight:32,AltRight:64,MetaRight:128};
+function usage(code){if(/^Key[A-Z]$/.test(code))return code.charCodeAt(3)-65+4;if(/^Digit[0-9]$/.test(code))return code==='Digit0'?39:Number(code[5])+29;if(/^F([1-9]|1[0-2])$/.test(code))return Number(code.slice(1))+57;if(/^Numpad[0-9]$/.test(code))return code==='Numpad0'?98:Number(code[6])+88;return special[code];}
+function enqueue(path,body){hidChain=hidChain.catch(()=>{}).then(()=>post(path,body)).catch(e=>{el('message').textContent=e.message;});return hidChain;}
+function keyboard(){enqueue('/api/hid/keyboard',{modifiers:[...modifiers].reduce((a,b)=>a|b,0),keys:[...pressed].slice(0,6)});}
+function release(){pressed.clear();modifiers.clear();keyboard();}
+for(const type of ['keydown','keyup'])el('keyboard').addEventListener(type,event=>{
+ event.preventDefault();if(event.repeat)return;
+ const code=usage(event.code),mod=modifier[event.code],down=type==='keydown';
+ if(mod){if(down)modifiers.add(mod);else modifiers.delete(mod);}else if(code!==undefined){if(down)pressed.add(code);else pressed.delete(code);}keyboard();
 });
-</script></html>
+el('keyboard').addEventListener('blur',release);el('release').onclick=release;
+el('cad').onclick=()=>perform(async()=>{await enqueue('/api/hid/keyboard',{modifiers:5,keys:[76]});await new Promise(r=>setTimeout(r,100));release();});
+let mouseButtons=0,dx=0,dy=0,wheel=0,mousePending=false,mouseDirty=false,lastPointer=null;
+async function flushMouse(force=false){
+ if(mousePending||(!force&&!mouseDirty&&!dx&&!dy&&!wheel))return;
+ const clamp=n=>Math.max(-127,Math.min(127,Math.round(n)));const x=clamp(dx),y=clamp(dy),w=clamp(wheel);dx-=x;dy-=y;wheel-=w;mousePending=true;mouseDirty=false;
+ try{await enqueue('/api/hid/mouse',{buttons:mouseButtons,x,y,wheel:w});}finally{mousePending=false;}
+}
+el('mouse').addEventListener('pointermove',event=>{if(lastPointer){dx+=event.clientX-lastPointer.x;dy+=event.clientY-lastPointer.y;}lastPointer={x:event.clientX,y:event.clientY};});
+el('mouse').addEventListener('pointerleave',()=>{lastPointer=null;});
+for(const type of ['pointerdown','pointerup'])el('mouse').addEventListener(type,event=>{event.preventDefault();mouseButtons=event.buttons;mouseDirty=true;if(type==='pointerdown')el('mouse').setPointerCapture(event.pointerId);flushMouse(true);});
+el('mouse').addEventListener('contextmenu',event=>event.preventDefault());
+el('mouse').addEventListener('wheel',event=>{event.preventDefault();wheel-=Math.sign(event.deltaY);},{passive:false});
+function releaseMouse(){mouseButtons=0;dx=dy=wheel=0;enqueue('/api/hid/mouse',{buttons:0,x:0,y:0,wheel:0});}
+el('mouseRelease').onclick=releaseMouse;el('mouse').addEventListener('pointercancel',releaseMouse);
+setInterval(()=>flushMouse(),25);
+window.addEventListener('blur',()=>{if(connected){release();releaseMouse();}});
+el('pwr').onclick=()=>perform(()=>post('/api/control/power',{button:'pwr',duration_ms:200}));
+el('reset').onclick=()=>perform(()=>post('/api/control/power',{button:'reset',duration_ms:200}));
+el('hold').onclick=()=>perform(()=>post('/api/control/power',{button:'pwr',duration_ms:5000}));
+</script></body></html>

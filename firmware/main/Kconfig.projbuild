@@ -31,4 +31,18 @@ config W2B_HID_RELEASE_MS
     int "键鼠没有新指令时自动释放的超时（毫秒）"
     range 200 10000
     default 1500
+config W2B_PWR_GPIO
+    int "主机PWR控制GPIO，-1表示禁用"
+    range -1 48
+    default -1
+config W2B_RESET_GPIO
+    int "主机RESET控制GPIO，-1表示禁用"
+    range -1 48
+    default -1
+config W2B_POWER_ACTIVE_HIGH
+    bool "主板按键驱动电路为高电平有效"
+    default y
+config W2B_POWER_OPEN_DRAIN
+    bool "GPIO使用开漏输出；必须配合适当的外部上拉与驱动电路"
+    default n
 endmenu

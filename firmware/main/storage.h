@@ -3,5 +3,6 @@
 void storage_init(void);
 /* 必须从唯一 USB 任务调用。 */
 void storage_tick(void);
+void storage_usb_started(void);
 bool storage_ready(void);
 void w2b_msc_cancel(void);

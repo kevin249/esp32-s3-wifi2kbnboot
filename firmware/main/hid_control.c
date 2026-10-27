@@ -1,4 +1,5 @@
 #include "hid_control.h"
+#include "power_control.h"
 #include "sdkconfig.h"
 #include "tusb.h"
 #include "cJSON.h"
@@ -55,7 +56,21 @@ static esp_err_t handle_hid(httpd_req_t *request) {
     hid_command_t command = {.created_us = esp_timer_get_time()};
     bool ok = root != NULL;
     int value = 0;
-    if (!strcmp(request->uri, "/hid/keyboard")) {
+    if (!strcmp(request->uri, "/control/power")) {
+        cJSON *button = cJSON_GetObjectItemCaseSensitive(root, "button");
+        int duration = 200;
+        bool valid = root && cJSON_IsString(button) &&
+            (!cJSON_HasObjectItem(root, "duration_ms") || integer(root, "duration_ms", 50, 8000, &duration));
+        esp_err_t result = valid ? power_control_submit(button->valuestring, duration) : ESP_ERR_INVALID_ARG;
+        cJSON_Delete(root);
+        httpd_resp_set_type(request, "application/json");
+        if (result != ESP_OK) {
+            httpd_resp_set_status(request, result == ESP_ERR_INVALID_ARG ? "400 Bad Request" : "409 Conflict");
+            return httpd_resp_sendstr(request, "{\"error\":\"GPIO未配置、脉冲执行中或参数无效\"}");
+        }
+        httpd_resp_set_status(request, "202 Accepted");
+        return httpd_resp_sendstr(request, "{\"queued\":true}");
+    } else if (!strcmp(request->uri, "/hid/keyboard")) {
         ok = ok && integer(root, "modifiers", 0, 255, &value);
         command.modifiers = value;
         cJSON *keys = cJSON_GetObjectItemCaseSensitive(root, "keys");
@@ -92,8 +107,10 @@ void hid_control_init(void) {
     ESP_ERROR_CHECK(httpd_start(&server, &config));
     httpd_uri_t keyboard = {.uri = "/hid/keyboard", .method = HTTP_POST, .handler = handle_hid};
     httpd_uri_t mouse = {.uri = "/hid/mouse", .method = HTTP_POST, .handler = handle_hid};
+    httpd_uri_t power = {.uri = "/control/power", .method = HTTP_POST, .handler = handle_hid};
     ESP_ERROR_CHECK(httpd_register_uri_handler(server, &keyboard));
     ESP_ERROR_CHECK(httpd_register_uri_handler(server, &mouse));
+    ESP_ERROR_CHECK(httpd_register_uri_handler(server, &power));
 }
 void hid_control_tick(void) {
     int64_t now = esp_timer_get_time();

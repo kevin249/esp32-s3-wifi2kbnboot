@@ -16,6 +16,13 @@ bool cache_contains(const block_cache_t *c, uint64_t base) {
         if (c->lines[i].valid && c->lines[i].base == base) return true;
     return false;
 }
+void cache_invalidate(block_cache_t *c, uint64_t address, uint32_t length) {
+    for (size_t i = 0; i < c->count; ++i) {
+        cache_line_t *line = &c->lines[i];
+        if (line->valid && line->base < address + length && line->base + line->length > address)
+            line->valid = false;
+    }
+}
 bool cache_read(block_cache_t *c, uint64_t address, void *output, uint32_t length) {
     uint64_t base = address / W2B_BLOCK_SIZE * W2B_BLOCK_SIZE;
     uint32_t offset = (uint32_t)(address - base);

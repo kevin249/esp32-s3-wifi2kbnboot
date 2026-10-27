@@ -31,6 +31,10 @@ int main(void) {
     cache_insert(&cache, high, data, sizeof(data), false);
     assert(cache_read(&cache, high + 123, out, 512));
     assert(!cache_read(&cache, 123, out, 512));
+    cache_insert(&cache, 0, data, sizeof(data), false);
+    cache_invalidate(&cache, high + 512, 512);
+    assert(!cache_contains(&cache, high));
+    assert(cache_contains(&cache, 0));
     puts("分块缓存测试通过");
     return 0;
 }

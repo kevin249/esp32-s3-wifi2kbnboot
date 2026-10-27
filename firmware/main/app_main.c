@@ -1,5 +1,6 @@
 #include "storage.h"
 #include "hid_control.h"
+#include "power_control.h"
 #include "sdkconfig.h"
 #include "tusb.h"
 #include "esp_event.h"
@@ -40,6 +41,7 @@ static void usb_task(void *argument) {
     ESP_ERROR_CHECK(usb_new_phy(&config, &phy));
     const tusb_rhport_init_t init = {.role = TUSB_ROLE_DEVICE, .speed = TUSB_SPEED_FULL};
     ESP_ERROR_CHECK(tusb_init(0, &init) ? ESP_OK : ESP_FAIL);
+    storage_usb_started();
     /* 初始化和所有 TinyUSB API 均在此任务调用。 */
     for (;;) {
         tud_task_ext(1, false);
@@ -48,6 +50,7 @@ static void usb_task(void *argument) {
     }
 }
 void app_main(void) {
+    power_control_init();
     configASSERT(strlen(CONFIG_W2B_TOKEN) >= 16 && strlen(CONFIG_W2B_TOKEN) <= 240);
     for (const unsigned char *p = (const unsigned char *)CONFIG_W2B_TOKEN; *p; ++p)
         configASSERT(*p > 32 && *p < 127);
