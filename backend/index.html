@@ -89,6 +89,11 @@ el('mouse').addEventListener('wheel',event=>{event.preventDefault();wheel-=Math.
 function releaseMouse(){mouseButtons=0;dx=dy=wheel=0;enqueue('/api/hid/mouse',{buttons:0,x:0,y:0,wheel:0});}
 el('mouseRelease').onclick=releaseMouse;el('mouse').addEventListener('pointercancel',releaseMouse);
 setInterval(()=>flushMouse(),25);
+// 保持主动长按；页面失去焦点后停止，设备看门狗仍负责兜底释放。
+setInterval(()=>{
+ if(connected&&(pressed.size||modifiers.size)&&document.activeElement===el('keyboard'))keyboard();
+ if(connected&&mouseButtons){mouseDirty=true;flushMouse();}
+},500);
 window.addEventListener('blur',()=>{if(connected){release();releaseMouse();}});
 el('pwr').onclick=()=>perform(()=>post('/api/control/power',{button:'pwr',duration_ms:200}));
 el('reset').onclick=()=>perform(()=>post('/api/control/power',{button:'reset',duration_ms:200}));

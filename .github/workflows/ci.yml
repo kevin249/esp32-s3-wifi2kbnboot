@@ -10,6 +10,7 @@ jobs:
           python-version: '3.12'
       - run: sudo apt-get update && sudo apt-get install -y mtools dosfstools
       - run: python -m unittest discover -s tests -v
+      - run: node --test tests/test_ui.js
       - run: gcc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -Ifirmware/main tests/test_cache.c firmware/main/block_cache.c -o /tmp/test-cache && /tmp/test-cache
   firmware:
     runs-on: ubuntu-latest

@@ -192,7 +192,7 @@ static void submit(job_t job) {
     network_busy = true;
 }
 static bool media_ready(uint8_t lun) {
-    return lun < 2 && initialized && !switching && active.media[lun].present && (lun == 0 || claimed);
+    return lun < 2 && initialized && !switching && active.media[lun].present && (lun == 0 || (claimed && !force_release));
 }
 void w2b_msc_cancel(void) {
     pending.valid = false;

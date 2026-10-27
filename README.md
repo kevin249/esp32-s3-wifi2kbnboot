@@ -109,7 +109,7 @@ TinyUSB 固定到提交 `92c9e65e7ce623300e2afd7678e6adecc027eaa0`。已有工�
 
 网页键盘区域支持常用按键、左右修饰键和最多6个普通键，另有 Ctrl+Alt+Delete 按钮。鼠标区域支持相对移动、按钮及滚轮。键盘、鼠标为独立Boot HID接口，Boot Mouse模式使用三字节报告。
 
-失去焦点时网页尝试释放按键；设备也会在默认1.5秒没有新指令时自动释放，长按需要周期更新。指令队列有界，过期指令丢弃。返回“已提交”代表入队，不代表受控主机已处理。
+失去焦点时网页尝试释放按键；设备也会在默认1.5秒没有新指令时自动释放。网页会周期更新正在保持的按键和鼠标按钮，直接调用API实现长按时也需周期更新。指令队列有界，过期指令丢弃。返回“已提交”代表入队，不代表受控主机已处理。
 
 可直接调用设备80端口，也可以调用后端 `/api/hid/keyboard`、`/api/hid/mouse` 代理：
 
@@ -164,6 +164,7 @@ PWR只是模拟按键，不代表一定开机或关机；长按行为由主板�
 
 ```bash
 python3 -m unittest discover -s tests -v
+node --test tests/test_ui.js
 gcc -std=c11 -Wall -Wextra -Werror -Ifirmware/main tests/test_cache.c firmware/main/block_cache.c -o test-cache
 ./test-cache
 ```

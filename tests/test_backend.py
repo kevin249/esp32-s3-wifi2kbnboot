@@ -1,6 +1,7 @@
 """验证双逻辑盘、互斥交接、写入落盘、ISO 浏览挂载和真实文件传输。"""
 import concurrent.futures
 import http.client
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import shutil
@@ -153,6 +154,35 @@ class BackendTests(unittest.TestCase):
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
             result = list(pool.map(read, range(30)))
         for i, data in enumerate(result): self.assertEqual(data, b"X" * 16384 if i % 2 else self.iso.read_bytes()[:16384])
+
+    def test_keyboard_mouse_and_power_proxy(self):
+        calls = []
+        class Device(BaseHTTPRequestHandler):
+            def do_POST(self):
+                calls.append((self.path, self.headers.get("Authorization"),
+                              json.loads(self.rfile.read(int(self.headers["Content-Length"])))))
+                data = b'{"queued":true}'
+                self.send_response(202)
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+            def log_message(self, *args): pass
+        device = ThreadingHTTPServer(("127.0.0.1", 0), Device)
+        thread = threading.Thread(target=device.serve_forever, daemon=True)
+        thread.start()
+        self.start_http(device_url=f"http://127.0.0.1:{device.server_port}")
+        try:
+            requests = [("/hid/keyboard", {"modifiers": 0, "keys": [4]}),
+                        ("/hid/mouse", {"buttons": 0, "x": 10, "y": -10, "wheel": 0}),
+                        ("/control/power", {"button": "pwr", "duration_ms": 200})]
+            for path, body in requests:
+                status, result = self.request("POST", "/api" + path, body)
+                self.assertEqual((status, result), (200, {"queued": True}))
+            self.assertEqual(calls, [(path, f"Bearer {TOKEN}", body) for path, body in requests])
+        finally:
+            device.shutdown()
+            device.server_close()
+            thread.join()
 
     @unittest.skipUnless(all(shutil.which(x) for x in ("mformat", "mcopy", "mdir")), "本机未安装 mtools")
     def test_real_bidirectional_files(self):

@@ -27,7 +27,7 @@ int main(void) {
     cache_clear(&cache);
     for (size_t i = 0; i < 5; ++i) assert(!cache_contains(&cache, i * W2B_BLOCK_SIZE));
     /* 64 位磁盘地址不可截断成 32 位。 */
-    uint64_t high = UINT64_C(1) << 35;
+    uint64_t high = UINT64_C(1) << 48;
     cache_insert(&cache, high, data, sizeof(data), false);
     assert(cache_read(&cache, high + 123, out, 512));
     assert(!cache_read(&cache, 123, out, 512));
