@@ -1,0 +1,34 @@
+menu "Wi-Fi 虚拟启动盘"
+config W2B_WIFI_SSID
+    string "Wi-Fi 名称"
+    default "请配置WiFi"
+config W2B_WIFI_PASSWORD
+    string "Wi-Fi 密码"
+    default ""
+config W2B_BACKEND_URL
+    string "后端地址，不含末尾斜线"
+    default "http://192.168.1.10:8080"
+config W2B_TOKEN
+    string "访问令牌，与后端环境变量一致，至少16字符"
+    default "change-this-token-before-use"
+config W2B_CACHE_BLOCKS
+    int "16KiB 缓存块数量；32块需要512KiB可用PSRAM"
+    range 4 256
+    default 8
+config W2B_PREFETCH_BLOCKS
+    int "连续读取的预读块数"
+    range 0 4
+    default 2
+config W2B_HTTP_TIMEOUT_MS
+    int "单次后端请求超时（毫秒）"
+    range 500 15000
+    default 3000
+config W2B_REFRESH_IDLE_MS
+    int "刷新前最短读取空闲时间（毫秒）；不代表上层操作完成"
+    range 1000 30000
+    default 3000
+config W2B_HID_RELEASE_MS
+    int "键鼠没有新指令时自动释放的超时（毫秒）"
+    range 200 10000
+    default 1500
+endmenu

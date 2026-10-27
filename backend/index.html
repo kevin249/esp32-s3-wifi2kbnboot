@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wi-Fi 虚拟启动盘</title>
+<style>body{font:16px system-ui;max-width:760px;margin:48px auto;padding:0 20px;background:#f5f7fa;color:#172b4d}section{background:white;padding:24px;border-radius:12px;margin:20px 0}input,button{font:inherit;padding:10px;margin:8px 0}input[type=password]{width:90%}button{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}small{display:block;line-height:1.7;color:#526174}</style>
+<h1>Wi-Fi 虚拟启动盘</h1>
+<section><label>访问令牌 <input id="token" type="password" autocomplete="off"></label><button id="status">读取镜像状态</button><pre id="output">请输入服务访问令牌。</pre></section>
+<section><h2>添加 BIOS 或其他文件</h2><p>文件写入新版本镜像的 BIOS 目录，受控主机继续读取旧版本，直到刷新虚拟盘。</p>
+<input id="file" type="file"><br><label><input id="activate" type="checkbox">上传成功后刷新虚拟盘</label><br><button id="upload">上传文件</button>
+<small>刷新会让整个 USB 复合设备短暂重新连接，包括键鼠。正在启动、复制文件或刷 BIOS 时不要刷新。镜像第一分区需为 FAT32。</small></section>
+<section><h2>让受控主机看到新文件</h2><button id="refresh">刷新虚拟盘</button><small>设备收到请求并等待读取空闲后重新连接。若当前处于 Ventoy 菜单，需要重新进入或重新启动以刷新列表。后端状态不代表设备已完成刷新。</small></section>
+<script>
+const el=id=>document.getElementById(id);
+async function api(path, options={}) {
+  const response=await fetch(path,{...options,headers:{Authorization:'Bearer '+el('token').value,...options.headers}});
+  const body=await response.json();
+  if(!response.ok) throw new Error(body.error||response.status);
+  return body;
+}
+async function perform(action){try{el('output').textContent='处理中……';el('output').textContent=JSON.stringify(await action(),null,2)}catch(e){el('output').textContent=e.message}}
+el('status').onclick=()=>perform(()=>api('/api/manifest'));
+el('refresh').onclick=()=>perform(()=>api('/api/activate',{method:'POST',body:new Uint8Array()}));
+el('upload').onclick=()=>perform(async()=>{
+  const file=el('file').files[0];if(!file) throw new Error('请先选择文件');
+  return api('/api/files?name='+encodeURIComponent(file.name)+'&activate='+(el('activate').checked?'1':'0'),{method:'POST',body:file});
+});
+</script></html>
