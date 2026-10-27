@@ -168,7 +168,7 @@ static void network_task(void *argument) {
 }
 static void submit(job_t job) {
     configASSERT(!network_busy);
-    configASSERT(xQueueSend(jobs, &job, 0) == pdTRUE);
+    ESP_ERROR_CHECK(xQueueSend(jobs, &job, 0) == pdTRUE ? ESP_OK : ESP_FAIL);
     network_busy = true;
 }
 static void request_block(uint64_t base, bool speculative) {
@@ -214,7 +214,7 @@ void storage_init(void) {
     jobs = xQueueCreate(1, sizeof(job_t));
     results = xQueueCreate(1, sizeof(result_t));
     configASSERT(jobs && results);
-    configASSERT(xTaskCreate(network_task, "磁盘网络", 6144, NULL, 4, NULL) == pdPASS);
+    ESP_ERROR_CHECK(xTaskCreate(network_task, "磁盘网络", 6144, NULL, 4, NULL) == pdPASS ? ESP_OK : ESP_ERR_NO_MEM);
     previous_end = UINT64_MAX;
 }
 bool storage_ready(void) { return ready; }

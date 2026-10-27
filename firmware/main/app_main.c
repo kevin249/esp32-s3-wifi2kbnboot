@@ -39,7 +39,7 @@ static void usb_task(void *argument) {
     };
     ESP_ERROR_CHECK(usb_new_phy(&config, &phy));
     const tusb_rhport_init_t init = {.role = TUSB_ROLE_DEVICE, .speed = TUSB_SPEED_FULL};
-    configASSERT(tusb_init(0, &init));
+    ESP_ERROR_CHECK(tusb_init(0, &init) ? ESP_OK : ESP_FAIL);
     /* 初始化和所有 TinyUSB API 均在此任务调用。 */
     for (;;) {
         tud_task_ext(1, false);
@@ -49,6 +49,8 @@ static void usb_task(void *argument) {
 }
 void app_main(void) {
     configASSERT(strlen(CONFIG_W2B_TOKEN) >= 16 && strlen(CONFIG_W2B_TOKEN) <= 240);
+    for (const unsigned char *p = (const unsigned char *)CONFIG_W2B_TOKEN; *p; ++p)
+        configASSERT(*p > 32 && *p < 127);
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -77,5 +79,5 @@ void app_main(void) {
     xEventGroupWaitBits(wifi_events, BIT0, pdFALSE, pdTRUE, portMAX_DELAY);
     storage_init();
     hid_control_init();
-    configASSERT(xTaskCreate(usb_task, "USB设备", 6144, NULL, 5, NULL) == pdPASS);
+    ESP_ERROR_CHECK(xTaskCreate(usb_task, "USB设备", 6144, NULL, 5, NULL) == pdPASS ? ESP_OK : ESP_ERR_NO_MEM);
 }

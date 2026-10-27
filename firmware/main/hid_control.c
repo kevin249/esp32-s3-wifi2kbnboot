@@ -21,6 +21,15 @@ static hid_command_t next;
 static int64_t last_keyboard, last_mouse;
 static bool keyboard_held, mouse_held;
 
+static bool mouse_report(uint8_t buttons, int8_t x, int8_t y, int8_t wheel) {
+    if (tud_hid_n_get_protocol(1) == HID_PROTOCOL_BOOT) {
+        /* BIOS 的 Boot Mouse 协议只有按钮、X、Y 三字节。 */
+        uint8_t report[3] = {buttons & 7, (uint8_t)x, (uint8_t)y};
+        return tud_hid_n_report(1, 0, report, sizeof(report));
+    }
+    return tud_hid_n_mouse_report(1, 0, buttons, x, y, wheel, 0);
+}
+
 static bool integer(cJSON *root, const char *name, int min, int max, int *out) {
     cJSON *item = cJSON_GetObjectItemCaseSensitive(root, name);
     if (!cJSON_IsNumber(item) || !isfinite(item->valuedouble) ||
@@ -98,7 +107,7 @@ void hid_control_tick(void) {
     if (keyboard_held && now - last_keyboard > expiry && tud_hid_n_ready(0))
         if (tud_hid_n_keyboard_report(0, 0, 0, empty)) keyboard_held = false;
     if (mouse_held && now - last_mouse > expiry && tud_hid_n_ready(1))
-        if (tud_hid_n_mouse_report(1, 0, 0, 0, 0, 0, 0)) mouse_held = false;
+        if (mouse_report(0, 0, 0, 0)) mouse_held = false;
     if (!waiting) waiting = xQueueReceive(commands, &next, 0) == pdTRUE;
     if (!waiting) return;
     if (now - next.created_us > expiry) { waiting = false; return; }
@@ -109,7 +118,7 @@ void hid_control_tick(void) {
             keyboard_held = next.modifiers || memcmp(next.keys, empty, 6);
             waiting = false;
         }
-    } else if (tud_hid_n_mouse_report(1, 0, next.buttons, next.x, next.y, next.wheel, 0)) {
+    } else if (mouse_report(next.buttons, next.x, next.y, next.wheel)) {
         last_mouse = now;
         mouse_held = next.buttons != 0;
         waiting = false;

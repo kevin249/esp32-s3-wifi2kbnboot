@@ -57,18 +57,18 @@ Python 3.11 或更新版本，无第三方 Python 依赖。Linux 后端支持完
 Linux：
 
 ```bash
-export WIFI_DISK_TOKEN='替换为至少16位的随机ASCII令牌'
+export WIFI_DISK_TOKEN='replace-with-your-random-ascii-token'
 python -m backend.server --image ./ventoy.img --data ./data --port 8080
 ```
 
 PowerShell：
 
 ```powershell
-$env:WIFI_DISK_TOKEN = '替换为至少16位的随机ASCII令牌'
+$env:WIFI_DISK_TOKEN = 'replace-with-your-random-ascii-token'
 python -m backend.server --image .\ventoy.img --data .\data --port 8080
 ```
 
-令牌用于 HTTP 头，请使用 ASCII 字符；上面的中文是占位说明，实际应替换，例如用 `python -c "import secrets; print(secrets.token_hex(24))"` 生成。首次导入后，重复启动从 `data/current.json` 恢复当前版本，不会重复导入 `--image`。
+令牌用于 HTTP 头，请使用 ASCII 字符；上面是占位值，实际应替换，例如用 `python -c "import secrets; print(secrets.token_hex(24))"` 生成。首次导入后，重复启动从 `data/current.json` 恢复当前版本，不会重复导入 `--image`。
 
 打开 `http://后端IP:8080/`，输入令牌后可以查看版本、上传文件和请求刷新。默认上传上限 128 MiB，可用 `--max-upload-mib` 调整。镜像复制和计算哈希需要时间与额外空间，每个版本目前保留完整副本；**示例没有自动清理旧版本**。
 
