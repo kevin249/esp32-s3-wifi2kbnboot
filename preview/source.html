@@ -1,0 +1,79 @@
+<div id="w2b-console-preview">
+  <div class="w2b-demo">界面预览 · 演示数据 · 不连接设备、不发送主板按键</div>
+  <header><div><h1>ESP32-S3 控制台</h1><p>SD 卡 · ISO 光驱 · 普通 U 盘 · 键鼠与电源控制</p></div><span class="w2b-badge">独立固件</span></header>
+  <div class="w2b-status" aria-live="polite"><span>热点：ESP32-KVM</span><span>地址：192.168.4.1</span><span>文件盘：FAT32</span><span id="w2b-owner">受控主机使用中</span></div>
+  <div class="w2b-grid">
+    <section><h2>ISO 虚拟光驱</h2><div class="w2b-selected">当前 ISO：<strong id="w2b-iso">未挂载</strong></div><div class="w2b-row"><button class="cursor-interaction" id="w2b-eject" type="button">弹出 ISO</button><label class="w2b-file cursor-interaction">上传 ISO<input id="w2b-iso-upload" type="file" multiple></label></div><div id="w2b-isos" class="w2b-list"></div><small>切换 ISO 前先取回文件盘，USB 键鼠会随设备短暂重连。</small></section>
+    <section><h2>普通文件盘</h2><p>先在受控主机安全弹出，再取回到网页端管理。</p><div class="w2b-row"><button class="cursor-interaction" id="w2b-take" type="button">取回文件盘</button><button class="cursor-interaction" id="w2b-attach" type="button">交还受控主机</button></div><label class="w2b-file cursor-interaction">上传 BIOS 或文件<input id="w2b-upload" type="file" multiple></label><div id="w2b-files" class="w2b-list"></div><small>文件双向传输保留；两端交替管理，避免同时修改 FAT。</small></section>
+    <section><h2>键盘模拟</h2><textarea id="w2b-keyboard" rows="3" aria-label="键盘演示输入区" placeholder="点击这里输入，预览只显示按键，不发送到设备"></textarea><div class="w2b-row"><button class="cursor-interaction" id="w2b-release" type="button">释放全部按键</button><button class="cursor-interaction" id="w2b-cad" type="button">Ctrl + Alt + Delete</button></div><small>正常版提供 Boot 键盘；BIOS 纯 U 盘版关闭 USB 键鼠。</small></section>
+    <section><h2>鼠标模拟</h2><div id="w2b-mouse" class="w2b-mouse" role="group" aria-label="鼠标演示区域"><span>在这里移动、点击和滚动</span><span id="w2b-pointer" aria-hidden="true"></span></div><button class="cursor-interaction" id="w2b-mouse-release" type="button">释放鼠标按钮</button><small>相对移动，支持左键、右键、中键和滚轮。</small></section>
+  </div>
+  <section class="w2b-power"><h2>主机按键</h2><div class="w2b-row"><button class="cursor-interaction" id="w2b-pwr" type="button">短按 PWR · 200 毫秒</button><button class="cursor-interaction" id="w2b-reset" type="button">按 RESET · 200 毫秒</button><button class="cursor-interaction" id="w2b-hold" type="button">长按 PWR · 5 秒</button></div><small>真实固件默认禁用 GPIO，配置引脚与隔离电路后方可使用。</small></section>
+  <div id="w2b-result" class="w2b-result" role="status" aria-live="polite">可点击按钮演示文件盘交接和 ISO 挂载。</div>
+</div>
+<style>
+#w2b-console-preview{color-scheme:light dark;--w2b-bg:light-dark(#f2f5fa,#111827);--w2b-panel:light-dark(#fff,#1e293b);--w2b-text:light-dark(#182a43,#e5edf7);--w2b-muted:light-dark(#52647c,#b4c2d5);--w2b-line:light-dark(#d4deeb,#40526a);--w2b-accent:light-dark(#edf3ff,#273e60);--w2b-action:light-dark(#173b73,#d8e7ff);font:16px system-ui,sans-serif;color:var(--w2b-text);background:var(--w2b-bg);padding:22px;border-radius:12px;box-sizing:border-box;width:100%}
+#w2b-console-preview *{box-sizing:border-box}
+#w2b-console-preview header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-right:92px;margin:18px 0}
+#w2b-console-preview h1{font-size:26px;font-weight:500;margin:0 0 6px}
+#w2b-console-preview h2{font-size:18px;font-weight:500;margin:0 0 14px}
+#w2b-console-preview p{margin:0 0 12px;color:var(--w2b-muted);line-height:1.6}
+#w2b-console-preview .w2b-demo{color:var(--w2b-muted);font-size:12px;padding-right:92px}
+#w2b-console-preview .w2b-badge{background:var(--w2b-accent);color:var(--w2b-action);border-radius:6px;padding:6px 10px;white-space:nowrap;font-size:12px}
+#w2b-console-preview .w2b-status{display:flex;flex-wrap:wrap;gap:10px 24px;padding:14px 16px;background:var(--w2b-accent);border-radius:9px;margin-bottom:18px;font-size:13px}
+#w2b-console-preview .w2b-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+#w2b-console-preview section{background:var(--w2b-panel);border-radius:12px;padding:20px;min-width:0}
+#w2b-console-preview .w2b-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+#w2b-console-preview button,#w2b-console-preview .w2b-file{font:inherit;font-size:14px;min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:8px 11px;border:1px solid var(--w2b-line);border-radius:7px;color:var(--w2b-action);background:var(--w2b-accent);cursor:var(--cursor-interaction,pointer)}
+#w2b-console-preview button:hover,#w2b-console-preview .w2b-file:hover{filter:brightness(.97)}
+#w2b-console-preview input[type=file]{max-width:100%;font:inherit;font-size:13px;margin-top:6px}
+#w2b-console-preview .w2b-file{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;background:transparent;margin:10px 0;max-width:100%}
+#w2b-console-preview small{display:block;font-size:12px;color:var(--w2b-muted);line-height:1.65;margin-top:12px}
+#w2b-console-preview .w2b-selected{font-size:14px;overflow-wrap:anywhere;margin-bottom:12px}
+#w2b-console-preview strong{font-weight:500}
+#w2b-console-preview .w2b-list{margin-top:10px}
+#w2b-console-preview .w2b-item{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--w2b-line);font-size:14px;overflow-wrap:anywhere}
+#w2b-console-preview .w2b-item span{min-width:0;flex:1}
+#w2b-console-preview .w2b-item button{min-height:32px;font-size:12px;padding:5px 9px}
+#w2b-console-preview textarea{width:100%;resize:vertical;font:inherit;color:var(--w2b-text);background:var(--w2b-bg);border:1px solid var(--w2b-line);border-radius:9px;padding:14px;min-height:110px}
+#w2b-console-preview .w2b-mouse{position:relative;overflow:hidden;display:grid;place-items:center;min-height:150px;background:var(--w2b-accent);border-radius:9px;color:var(--w2b-muted);font-size:14px;touch-action:none;user-select:none}
+#w2b-console-preview #w2b-pointer{position:absolute;left:50%;top:50%;height:14px;width:14px;border:2px solid var(--w2b-action);border-radius:50%;pointer-events:none}
+#w2b-console-preview .w2b-power{margin-top:18px}
+#w2b-console-preview .w2b-result{margin-top:16px;min-height:30px;font-size:14px;color:var(--w2b-action);overflow-wrap:anywhere}
+@media(max-width:650px){#w2b-console-preview{padding:14px}#w2b-console-preview .w2b-grid{grid-template-columns:1fr}#w2b-console-preview header{padding-right:0;align-items:flex-start}#w2b-console-preview .w2b-demo{padding-right:84px}#w2b-console-preview h1{font-size:22px}#w2b-console-preview section{padding:16px}}
+@media(pointer:coarse){#w2b-console-preview button,#w2b-console-preview .w2b-file{min-height:44px}#w2b-console-preview textarea{font-size:16px}}
+</style>
+<script>
+(()=>{
+const root=document.getElementById('w2b-console-preview');
+const get=id=>root.querySelector('#w2b-'+id);
+const saved=window.openai?.widgetState;
+const state={host:saved?.modelContent?.host??true,iso:saved?.modelContent?.iso||'',isos:['系统安装.iso','维护工具.iso'],files:['主板BIOS.CAP','诊断日志.txt']};
+const say=text=>{get('result').textContent=text;};
+const remember=()=>{if(window.openai?.setWidgetState)window.openai.setWidgetState({modelContent:{host:state.host,iso:state.iso}}).catch(()=>{});};
+function item(name,label,handler){const row=document.createElement('div');row.className='w2b-item';const text=document.createElement('span');text.textContent=name;row.append(text);const button=document.createElement('button');button.type='button';button.className='cursor-interaction';button.textContent=label;button.onclick=handler;row.append(button);return row;}
+function draw(){
+ get('owner').textContent=state.host?'受控主机使用中':'网页端管理中';get('iso').textContent=state.iso||'未挂载';get('isos').replaceChildren();get('files').replaceChildren();
+ state.isos.forEach(name=>get('isos').append(item(name,'挂载',()=>{if(state.host){say('请先安全弹出并取回文件盘，再切换 ISO。');return;}state.iso=name;draw();remember();say('演示：已挂载 '+name+'；真实设备此时会重新连接 USB。');})));
+ if(state.host)get('files').textContent='取回文件盘后，可以查看、上传和下载文件。';
+ else state.files.forEach(name=>get('files').append(item(name,'下载演示',()=>say('演示：读取 '+name+'。这里不会下载真实设备文件。'))));
+}
+get('take').onclick=()=>{state.host=false;draw();remember();say('演示：文件盘已交给网页端，可以上传或查看文件。');};
+get('attach').onclick=()=>{state.host=true;draw();remember();say('演示：文件盘已交还受控主机，真实设备会重新识别 U 盘。');};
+get('eject').onclick=()=>{if(state.host){say('请先取回文件盘。');return;}state.iso='';draw();remember();say('演示：ISO 已弹出。');};
+get('upload').onchange=event=>{if(state.host){say('请先取回文件盘，再上传文件。');event.target.value='';return;}for(const file of event.target.files)if(!state.files.includes(file.name))state.files.push(file.name);draw();say('演示：仅更新文件名列表，没有读取或上传文件内容。');};
+get('iso-upload').onchange=event=>{for(const file of event.target.files)if(!state.isos.includes(file.name))state.isos.push(file.name);draw();say('演示：仅添加 ISO 名称，没有读取或上传文件内容。');};
+get('keyboard').addEventListener('keydown',event=>say('键盘演示：'+event.key+'；未发送到设备。'));
+get('release').onclick=()=>{get('keyboard').value='';say('演示：已释放全部按键。');};
+get('cad').onclick=()=>say('演示：Ctrl + Alt + Delete；未发送到设备。');
+get('mouse').addEventListener('pointermove',event=>{const box=event.currentTarget.getBoundingClientRect();get('pointer').style.left=Math.max(0,event.clientX-box.left-7)+'px';get('pointer').style.top=Math.max(0,event.clientY-box.top-7)+'px';});
+get('mouse').addEventListener('pointerdown',()=>say('鼠标点击演示；未发送到设备。'));
+get('mouse').addEventListener('contextmenu',event=>event.preventDefault());
+get('mouse-release').onclick=()=>say('演示：已释放鼠标按钮。');
+get('pwr').onclick=()=>say('演示：PWR 短按 200 毫秒；未操作 GPIO。');
+get('reset').onclick=()=>say('演示：RESET 200 毫秒；未操作 GPIO。');
+get('hold').onclick=()=>say('演示：PWR 长按 5 秒；未操作 GPIO。');
+window.addEventListener('openai:set_globals',event=>{const next=event.detail?.globals?.widgetState?.modelContent;if(next){state.host=next.host??state.host;state.iso=next.iso??state.iso;draw();}});
+draw();
+})();
+</script>

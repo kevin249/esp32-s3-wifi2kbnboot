@@ -15,6 +15,12 @@ flowchart LR
     B --> G["隔离电路<br/>PWR / RESET"]
 ```
 
+## 控制台预览
+
+打开 [preview/index.html](preview/index.html) 可以离线查看可交互页面，预览使用演示数据，不会连接设备、上传文件内容或触发GPIO。可演示取回/交还文件盘、挂载ISO及键鼠和电源按钮。
+
+实际烧录到ESP32的页面是firmware/main/index.html，需要设备在线并输入令牌。按最新选择，暂不加入UVC采集或视频区；视频硬件方案保留在下文说明。
+
 ## 1. 硬件与 SD 卡
 
 - ESP32-S3，参考 ESP-IDF **v5.5.2**，默认8MB Flash；按实际板卡修改容量。

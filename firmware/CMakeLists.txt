@@ -10,6 +10,13 @@ if(W2B_EXFAT)
         message(FATAL_ERROR "FatFs配置与ESP-IDF 5.5.2不匹配，请先核对SDK版本")
     endif()
     string(REPLACE "${W2B_EXFAT_ANCHOR}" "#define FF_FS_EXFAT 1" W2B_FFCONF "${W2B_FFCONF}")
+    # 禁用的Kconfig布尔值不会生成宏；exFAT代码中也有普通C表达式引用，须显式补0。
+    set(W2B_FF_BOOL_DEFAULTS "")
+    foreach(W2B_BOOL IN ITEMS FATFS_USE_LABEL FATFS_USE_FASTSEEK FATFS_PER_FILE_CACHE
+            FATFS_USE_DYN_BUFFERS FATFS_DONT_TRUST_FREE_CLUSTER_CNT FATFS_DONT_TRUST_LAST_ALLOC)
+        string(APPEND W2B_FF_BOOL_DEFAULTS "\n#ifndef CONFIG_${W2B_BOOL}\n#define CONFIG_${W2B_BOOL} 0\n#endif\n")
+    endforeach()
+    string(REPLACE "#include \"sdkconfig.h\"" "#include \"sdkconfig.h\"\n${W2B_FF_BOOL_DEFAULTS}" W2B_FFCONF "${W2B_FFCONF}")
     set(W2B_FATFS_DIR "${CMAKE_BINARY_DIR}/w2b-components/fatfs")
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/w2b-components")
     file(COPY "$ENV{IDF_PATH}/components/fatfs" DESTINATION "${CMAKE_BINARY_DIR}/w2b-components")
