@@ -40,6 +40,12 @@ jobs:
             "$IDF_PATH/components/fatfs/src/ff.c" "$IDF_PATH/components/fatfs/src/ffunicode.c" -lpthread -o /tmp/test-sd-exfat
           cd /tmp
           timeout 60 ./test-sd-exfat
+      - name: 编译exFAT独立固件
+        shell: bash
+        working-directory: firmware
+        run: |
+          . "$IDF_PATH/export.sh"
+          idf.py -B build-exfat -D IDF_TARGET=esp32s3 -D W2B_EXFAT=ON -D SDKCONFIG=sdkconfig.exfat.ci build
       - name: 编译正常双逻辑盘固件
         shell: bash
         working-directory: firmware
@@ -53,12 +59,6 @@ jobs:
         run: |
           . "$IDF_PATH/export.sh"
           idf.py -B build-bios -D IDF_TARGET=esp32s3 -D SDKCONFIG=sdkconfig.bios.ci -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.bios" build
-      - name: 编译exFAT独立固件
-        shell: bash
-        working-directory: firmware
-        run: |
-          . "$IDF_PATH/export.sh"
-          idf.py -B build-exfat -D IDF_TARGET=esp32s3 -D W2B_EXFAT=ON -D SDKCONFIG=sdkconfig.exfat.ci build
       - uses: actions/upload-artifact@v4
         with:
           name: esp32s3-独立固件
