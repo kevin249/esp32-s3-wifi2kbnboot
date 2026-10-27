@@ -7,15 +7,12 @@
 ```mermaid
 flowchart LR
     A["电脑或手机浏览器"] <-->|Wi-Fi| B["ESP32-S3 固件网页"]
-    B <--> C["SD卡 FAT32
-iso目录与files.img"]
+    B <--> C["SD卡 FAT32<br/>iso目录与files.img"]
     C <--> D["16KiB缓存与SD异步任务"]
-    D <-->|USB| E["受控主机
-只读光驱＋普通FAT U盘"]
+    D <-->|USB| E["受控主机<br/>只读光驱＋普通FAT U盘"]
     B --> F["USB键鼠"]
     F --> E
-    B --> G["隔离电路
-PWR / RESET"]
+    B --> G["隔离电路<br/>PWR / RESET"]
 ```
 
 ## 1. 硬件与 SD 卡
@@ -124,10 +121,10 @@ curl -X POST http://设备IP/api/hid/keyboard -H 'Authorization: Bearer TOKEN' -
 
 ```mermaid
 flowchart LR
-    A["PWR GPIO\n可配置，高有效"] --> B["限流电阻\n例如680Ω，按光耦参数核算"]
+    A["PWR GPIO<br/>可配置，高有效"] --> B["限流电阻<br/>例如680Ω，按光耦参数核算"]
     B --> C["光耦LED"]
     C --> D["ESP32 GND"]
-    E["外部下拉\n例如10kΩ"] --- A
+    E["外部下拉<br/>例如10kΩ"] --- A
     E --- D
     C -.光隔离.-> F["光耦输出晶体管"]
     F --- G["主板PWR信号针"]
@@ -164,8 +161,7 @@ PWR只是模拟按键，不代表一定开机或关机；长按行为由主板�
 flowchart LR
     A["受控主机 HDMI"] --> B["独立采集与编码模块"]
     B -->|网络视频流| C["浏览器视频区域"]
-    D["ESP32-S3
-网页、HID、MSC、GPIO"] <-->|Wi-Fi控制| C
+    D["ESP32-S3<br/>网页、HID、MSC、GPIO"] <-->|Wi-Fi控制| C
     D <-->|USB设备| E["受控主机 USB"]
 ```
 

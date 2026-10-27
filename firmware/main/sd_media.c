@@ -18,7 +18,7 @@ static bool image_open, iso_open, iso_split;
 static unsigned iso_part;
 static FATFS *files_fs;
 static BYTE image_drive;
-static char image_drive_name[4], sd_drive_name[4];
+static char image_drive_name[8], sd_drive_name[4];
 static unsigned web_users;
 
 void sd_media_lock(void) { xSemaphoreTake(mutex, portMAX_DELAY); }
@@ -38,18 +38,18 @@ static esp_err_t image_io(uint64_t address, void *buffer, uint32_t length,
   return ESP_OK;
 }
 /* 已由 sd_media mutex 包围；内层卷通过这些回调访问外层SD文件。 */
-static DSTATUS disk_init(BYTE drive) {
+static DSTATUS image_disk_init(BYTE drive) {
   (void)drive;
   return image_open ? 0 : STA_NOINIT;
 }
-static DRESULT disk_read(BYTE drive, BYTE *buffer, DWORD sector, UINT count) {
+static DRESULT image_disk_read(BYTE drive, BYTE *buffer, DWORD sector, UINT count) {
   (void)drive;
   return count <= UINT32_MAX / 512 && image_io((uint64_t)sector * 512, buffer,
                                                count * 512, false) == ESP_OK
              ? RES_OK
              : RES_ERROR;
 }
-static DRESULT disk_write(BYTE drive, const BYTE *buffer, DWORD sector,
+static DRESULT image_disk_write(BYTE drive, const BYTE *buffer, DWORD sector,
                           UINT count) {
   (void)drive;
   return count <= UINT32_MAX / 512 &&
@@ -58,7 +58,7 @@ static DRESULT disk_write(BYTE drive, const BYTE *buffer, DWORD sector,
              ? RES_OK
              : RES_ERROR;
 }
-static DRESULT disk_ioctl(BYTE drive, BYTE command, void *buffer) {
+static DRESULT image_disk_ioctl(BYTE drive, BYTE command, void *buffer) {
   (void)drive;
   switch (command) {
   case CTRL_SYNC:
@@ -141,11 +141,11 @@ esp_err_t sd_media_init(void) {
   err = ff_diskio_get_drive(&image_drive);
   if (err != ESP_OK)
     return err;
-  static const ff_diskio_impl_t impl = {.init = disk_init,
-                                        .status = disk_init,
-                                        .read = disk_read,
-                                        .write = disk_write,
-                                        .ioctl = disk_ioctl};
+  static const ff_diskio_impl_t impl = {.init = image_disk_init,
+                                        .status = image_disk_init,
+                                        .read = image_disk_read,
+                                        .write = image_disk_write,
+                                        .ioctl = image_disk_ioctl};
   ff_diskio_register(image_drive, &impl);
   snprintf(image_drive_name, sizeof(image_drive_name), "%u:", image_drive);
   esp_vfs_fat_conf_t conf = {
@@ -321,7 +321,7 @@ esp_err_t sd_media_read(unsigned lun, uint64_t address, void *buffer,
           f_close(&iso);
         char name[W2B_NAME_MAX + 1], path[256];
         snprintf(name, sizeof(name), "%s", state.iso_name);
-        snprintf(name + strlen(name) - 3, 4, "%03u", part);
+        snprintf(name + strlen(name) - 3, 4, "%03u", part % 1000);
         snprintf(path, sizeof(path), "%s/iso/%s", sd_drive_name, name);
         iso_open = f_open(&iso, path, FA_READ) == FR_OK;
         iso_part = part;
