@@ -23,7 +23,7 @@ function page() {
     setInterval: (callback, ms) => intervals.push({callback, ms}),
     setTimeout: callback => callback(),
     fetch: async (path, options) => {
-      calls.push({path, body: options.body ? JSON.parse(options.body) : null});
+      calls.push({path, body: typeof options.body === 'string' ? JSON.parse(options.body) : options.body || null});
       if (deferMouse && path === '/api/hid/mouse') {
         deferMouse = false;
         await new Promise(resolve => { finishMouse = resolve; });
@@ -72,4 +72,12 @@ test('网页主板按钮发送独立脉冲参数', async () => {
     {button: 'pwr', duration_ms: 200}, {button: 'reset', duration_ms: 200},
     {button: 'pwr', duration_ms: 5000},
   ]);
+});
+test('ISO分卷逐个上传到设备SD卡接口', async () => {
+  const p=page();
+  const a={name:'系统.iso.000'},b={name:'系统.iso.001'};
+  p.get('isoUploadFile').files=[a,b];await p.get('isoUpload').onclick();
+  const uploads=p.calls.filter(c=>c.path.startsWith('/api/iso/upload'));
+  assert.equal(uploads.length,2);assert.equal(uploads[0].body,a);assert.equal(uploads[1].body,b);
+  assert.ok(uploads[0].path.includes(encodeURIComponent(a.name)));
 });

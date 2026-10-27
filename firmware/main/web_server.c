@@ -325,10 +325,10 @@ static esp_err_t api(httpd_req_t *r) {
   if (!authorized(r))
     return ESP_OK;
   char route[64];
-  snprintf(route, sizeof(route), "%s", r->uri);
-  char *q = strchr(route, '?');
-  if (q)
-    *q = 0;
+  size_t route_length = strcspn(r->uri, "?");
+  if (route_length >= sizeof(route)) return error(r, 404, "接口不存在");
+  memcpy(route, r->uri, route_length);
+  route[route_length] = 0;
   if (!strcmp(route, "/api/manifest"))
     return manifest(r);
   if (!strcmp(route, "/api/library"))

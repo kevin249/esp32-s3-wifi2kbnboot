@@ -11,6 +11,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#ifdef ESP_PLATFORM
+#include "nvs.h"
+#include "esp_log.h"
+#endif
 
 static SemaphoreHandle_t mutex;
 static sd_media_state_t state;
@@ -177,6 +181,15 @@ esp_err_t sd_media_init(void) {
     image_open = true;
   }
   /* 默认交给受控主机，启动时不在固件中挂载同一文件盘。 */
+#ifdef ESP_PLATFORM
+  nvs_handle_t remembered;
+  if (nvs_open("w2b-media", NVS_READONLY, &remembered) == ESP_OK) {
+    char name[W2B_NAME_MAX + 1]; size_t length = sizeof(name);
+    if (nvs_get_str(remembered, "iso", name, &length) == ESP_OK && name[0])
+      sd_media_select_iso(name);
+    nvs_close(remembered);
+  }
+#endif
   state.host_owner = true;
   state.files_ready = true;
   return ESP_OK;
@@ -248,6 +261,7 @@ esp_err_t sd_media_select_iso(const char *name) {
     goto done;
   }
   size_t length = strlen(name);
+  if (length > W2B_NAME_MAX) { err = ESP_ERR_INVALID_ARG; goto done; }
   bool split = length > 8 && !strcasecmp(name + length - 8, ".iso.000");
   if (!split && (length < 4 || strcasecmp(name + length - 4, ".iso"))) {
     err = ESP_ERR_INVALID_ARG;
@@ -259,7 +273,7 @@ esp_err_t sd_media_select_iso(const char *name) {
   char path[256], part_name[W2B_NAME_MAX + 1];
   FILINFO info;
   for (unsigned i = 0; i < (split ? W2B_ISO_MAX_PARTS : 1); ++i) {
-    snprintf(part_name, sizeof(part_name), "%s", name);
+    memcpy(part_name, name, length + 1);
     if (split)
       snprintf(part_name + length - 3, 4, "%03u", i % 1000);
     snprintf(path, sizeof(path), "%s/iso/%s", sd_drive_name, part_name);
@@ -294,8 +308,22 @@ esp_err_t sd_media_select_iso(const char *name) {
   iso_part = 0;
   state.iso_size = total;
   state.iso_present = true;
-  snprintf(state.iso_name, sizeof(state.iso_name), "%s", name);
+  memcpy(state.iso_name, name, length + 1);
 done:
+#ifdef ESP_PLATFORM
+  if (err == ESP_OK) {
+    nvs_handle_t remembered;
+    if (nvs_open("w2b-media", NVS_READWRITE, &remembered) == ESP_OK) {
+      char old[W2B_NAME_MAX + 1]; size_t n = sizeof(old);
+      if (nvs_get_str(remembered, "iso", old, &n) != ESP_OK || strcmp(old, name)) {
+        esp_err_t saved = nvs_set_str(remembered, "iso", name);
+        if (saved == ESP_OK) saved = nvs_commit(remembered);
+        if (saved != ESP_OK) ESP_LOGW("SD卡", "ISO选择未能保存到NVS");
+      }
+      nvs_close(remembered);
+    }
+  }
+#endif
   sd_media_unlock();
   return err;
 }

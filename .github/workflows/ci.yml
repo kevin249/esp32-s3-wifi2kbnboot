@@ -5,7 +5,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: node --test tests/test_ui.js
+      - run: node --test tests/test_ui.js tests/test_split_iso.js
       - run: |
           gcc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -Ifirmware/main tests/test_cache.c firmware/main/block_cache.c -o /tmp/test-cache
           /tmp/test-cache

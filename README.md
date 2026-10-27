@@ -68,7 +68,7 @@ idf.py -p 实际串口 flash monitor
 
 ### 只读虚拟光驱
 
-先取回文件盘，再在网页ISO区域选择或上传ISO并挂载。ISO目录是SD卡上的 `iso`；也可以关机后将ISO直接复制到SD卡。已挂载的ISO及分卷禁止外部修改，删除前必须弹出ISO。
+先取回文件盘，再在网页ISO区域选择或上传ISO并挂载。ISO目录是SD卡上的 `iso`；也可以关机后将ISO直接复制到SD卡。已挂载的ISO及分卷禁止外部修改，删除前必须弹出ISO。成功的ISO选择保存到NVS，设备重启后会尝试恢复；文件缺失或损坏时不强行挂载。
 
 ISO为2048字节逻辑扇区，普通文件盘为512字节扇区。正常构建中ISO是LUN0，文件盘是LUN1；它们是两个逻辑盘，不是同一磁盘的两个分区。ISO切换、文件盘交接会短暂断开整个USB设备，包括键鼠。
 
@@ -91,7 +91,7 @@ idf.py -B build-bios -D IDF_TARGET=esp32s3 -D SDKCONFIG=sdkconfig.bios.ci -D SDK
 idf.py -B build-bios -p 实际串口 flash
 ```
 
-也可以在menuconfig启用“BIOS兼容构建”。两种构建使用同一个files.img，不删除文件。兼容构建改变USB产品ID，避免桌面系统混用旧设备配置。
+也可以在menuconfig启用“BIOS兼容构建”。两种构建使用同一个files.img，不删除文件。文件盘只提供文件读取，没有系统引导程序；不能把纯U盘构建当作ISO启动模式。兼容构建改变USB产品ID，避免桌面系统混用旧设备配置。
 
 MBR、FAT16、根目录文件和单LUN模式提高BIOS兼容性，**无法在没有目标主板实测的情况下保证所有BIOS都识别**。部分厂商刷写工具有特定文件名、介质类型或USB口要求，请按厂商说明验证。
 
@@ -172,7 +172,7 @@ flowchart LR
 GitHub Actions使用ESP-IDF v5.5.2编译正常版和BIOS纯U盘版；还把实际生产sd_media.c与同版本FatFs一起编译到原生测试中，验证MBR/FAT16、中文BIOS文件、双向交接、ISO读取与边界。页面事件、C缓存和大ISO分卷逻辑也有自动测试。
 
 ```bash
-node --test tests/test_ui.js
+node --test tests/test_ui.js tests/test_split_iso.js
 gcc -std=c11 -Wall -Wextra -Werror -Ifirmware/main tests/test_cache.c firmware/main/block_cache.c -o test-cache
 gcc -std=c11 -Wall -Wextra -Werror -Ifirmware/main tests/test_media_rules.c firmware/main/media_rules.c -o test-rules
 ```
