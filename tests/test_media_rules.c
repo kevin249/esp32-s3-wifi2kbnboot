@@ -9,7 +9,7 @@ int main(void) {
     assert(!media_range_valid(UINT64_MAX,UINT64_MAX-1,4));assert(!media_range_valid(4096,0,0));
     uint64_t total,sizes[]={W2B_ISO_PART_SIZE,W2B_ISO_PART_SIZE,4096};
     assert(media_iso_sizes(sizes,3,true,&total)&&total==2*W2B_ISO_PART_SIZE+4096);
-    unsigned part;uint32_t within,length;
+    unsigned part;uint64_t within;uint32_t length;
     assert(media_iso_position(total,true,W2B_ISO_PART_SIZE-2048,4096,&part,&within,&length));
     assert(part==0&&within==W2B_ISO_PART_SIZE-2048&&length==2048);
     assert(media_iso_position(total,true,W2B_ISO_PART_SIZE,4096,&part,&within,&length));assert(part==1&&within==0&&length==4096);
@@ -17,5 +17,13 @@ int main(void) {
     uint64_t single[]={3ULL*1024*1024*1024};assert(media_iso_sizes(single,1,false,&total));
     assert(media_iso_position(total,false,UINT64_C(2500000000),4096,&part,&within,&length));
     assert(part==0&&within==UINT32_C(2500000000));
+    uint64_t large[]={6ULL*1024*1024*1024};
+#ifdef W2B_EXFAT_ENABLED
+    assert(media_iso_sizes(large,1,false,&total));
+    assert(media_iso_position(total,false,5ULL*1024*1024*1024,4096,&part,&within,&length));
+    assert(within==5ULL*1024*1024*1024);
+#else
+    assert(!media_iso_sizes(large,1,false,&total));
+#endif
     puts("文件名、磁盘边界与大ISO分卷测试通过");return 0;
 }

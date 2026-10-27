@@ -7,6 +7,8 @@ data/
 firmware/build/
 firmware/build-bios/
 firmware/sdkconfig.bios.ci
+firmware/build-exfat/
+firmware/sdkconfig.exfat.ci
 firmware/sdkconfig
 firmware/sdkconfig.old
 .DS_Store

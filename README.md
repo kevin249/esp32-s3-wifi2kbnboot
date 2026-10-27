@@ -18,7 +18,7 @@ flowchart LR
 ## 1. 硬件与 SD 卡
 
 - ESP32-S3，参考 ESP-IDF **v5.5.2**，默认8MB Flash；按实际板卡修改容量。
-- FAT32 格式的 SD 卡。**现有 SD 卡挂载失败不会被自动格式化**，exFAT 需事先备份并改成 FAT32。
+- 默认构建使用FAT32格式的SD卡；exFAT构建可挂载FAT32或exFAT格式SD卡。**现有SD卡挂载失败不会被自动格式化。**
 - 使用1位 SDMMC：默认 CLK=GPIO14、CMD=GPIO15、D0=GPIO2，可在 menuconfig 修改。
 - CMD、D0和必要的SD数据脚需按SD卡/模块电路配置外部上拉，不能只依赖芯片内部弱上拉；信号使用3.3V。
 - 原生USB：D−=GPIO19、D+=GPIO20，连接受控主机。日志使用独立USB-UART。
@@ -26,10 +26,10 @@ flowchart LR
 
 请先核对开发板原理图，SD引脚不能与USB、Flash/PSRAM或其他外设冲突。供电与防回流按板卡设计处理。
 
-固件首次启动会在SD根目录自动创建 `files.img`，默认128MiB，可配置32～1024MiB。它是带 **MBR 分区表的 FAT16 镜像**，由ESP32在USB侧模拟普通U盘。初始化需要写入整个镜像，首次上电网页可能需要等待；修改配置容量不会覆盖已有镜像。
+固件首次启动会在SD根目录自动创建 `files-fat32.img` 或 `files-exfat.img`，默认128MiB，可配置64～1024MiB。默认是带 **MBR 分区表的 FAT32 镜像**，exFAT构建则创建exFAT镜像，由ESP32在USB侧模拟普通U盘。初始化需要写入整个镜像，首次上电网页可能需要等待；修改配置容量不会覆盖已有镜像。
 
 ```text
-SD卡内容：iso目录保存ISO或分卷；files.img保存普通U盘内容；files.creating是首次创建时的临时文件。
+SD卡内容：iso目录保存ISO或分卷；files-fat32.img和files-exfat.img分别保存对应格式文件盘；同名前缀的.creating是首次创建临时文件。
 ```
 
 ## 2. 编译与独立运行
@@ -50,6 +50,29 @@ idf.py -p 实际串口 flash monitor
 控制网页直接嵌入固件，不需要安装运行服务。HTTP适合可信局域网；没有默认TLS或公网访问功能。
 
 默认没有PSRAM时使用64KiB缓存。配有PSRAM的板卡可按实际类型启用，再把缓存块数设成32得到512KiB缓存；`sdkconfig.psram`仅适用于八线PSRAM。所有数据放在SD卡，PSRAM只用于缓存。
+
+### FAT32 / exFAT 构建选择
+
+芯片本身不规定文件系统。ESP-IDF v5.5.2内置FatFs默认支持FAT12、FAT16、FAT32，SDK的ffconf.h将exFAT关闭。本项目的exFAT构建通过统一的完整配置头启用它，所有引用FatFs的代码使用同一结构布局，不修改已安装的SDK。NVS、SPIFFS等片内存储机制与这里的USB文件盘格式是不同概念。
+
+| 构建 | SD卡格式 | 普通U盘格式 | 建议用途 |
+|---|---|---|---|
+| 默认 | FAT32 | FAT32 | 优先BIOS读取与兼容性 |
+| exFAT | FAT32或exFAT | exFAT | 已验证主板支持exFAT，或需要SD卡保存大单文件ISO |
+
+exFAT单独构建目录：
+
+```bash
+idf.py -B build-exfat -D IDF_TARGET=esp32s3 -D W2B_EXFAT=ON -D SDKCONFIG=sdkconfig.exfat.ci menuconfig
+idf.py -B build-exfat -D IDF_TARGET=esp32s3 -D W2B_EXFAT=ON -D SDKCONFIG=sdkconfig.exfat.ci build
+idf.py -B build-exfat -p 实际串口 flash
+```
+
+exFAT需要保留长文件名支持，默认配置已启用。两种格式分别使用files-fat32.img和files-exfat.img，不自动转换或覆盖已有文件；旧版本files.img也不会被删除。需要迁移时先在原固件中下载文件，再上传到新格式文件盘。
+
+很多BIOS/UEFI刷写工具仅支持FAT系列，**exFAT不能保证BIOS可读**。即使选择单LUN纯U盘模式，也不能弥补主板缺少exFAT驱动的问题。目标主板未验证时，请使用FAT32。ISO光驱不受普通文件盘格式选择影响。
+
+原始SDK配置参考：[ESP-IDF v5.5.2 ffconf.h](https://github.com/espressif/esp-idf/blob/v5.5.2/components/fatfs/src/ffconf.h)。
 
 ## 3. BIOS 文件传输与 ISO 挂载
 
@@ -72,7 +95,7 @@ idf.py -p 实际串口 flash monitor
 
 ISO为2048字节逻辑扇区，普通文件盘为512字节扇区。正常构建中ISO是LUN0，文件盘是LUN1；它们是两个逻辑盘，不是同一磁盘的两个分区。ISO切换、文件盘交接会短暂断开整个USB设备，包括键鼠。
 
-FAT32单文件小于4GiB。大ISO可使用随项目提供的Node.js工具分卷；Node.js只用于电脑上预处理，不是设备的运行依赖：
+FAT32单文件小于4GiB。exFAT构建允许在exFAT SD卡上离线存入大于4GiB的单文件ISO并直接挂载。网页单次上传上限仍是1GiB，大ISO可使用随项目提供的Node.js工具分卷；Node.js只用于电脑上预处理，不是设备的运行依赖：
 
 ```bash
 node tools/split_iso.js 原始系统.iso 输出目录
@@ -91,9 +114,9 @@ idf.py -B build-bios -D IDF_TARGET=esp32s3 -D SDKCONFIG=sdkconfig.bios.ci -D SDK
 idf.py -B build-bios -p 实际串口 flash
 ```
 
-也可以在menuconfig启用“BIOS兼容构建”。两种构建使用同一个files.img，不删除文件。文件盘只提供文件读取，没有系统引导程序；不能把纯U盘构建当作ISO启动模式。兼容构建改变USB产品ID，避免桌面系统混用旧设备配置。
+也可以在menuconfig启用“BIOS兼容构建”。正常版和BIOS兼容版使用对应格式的同一文件盘镜像，不删除文件。文件盘只提供文件读取，没有系统引导程序；不能把纯U盘构建当作ISO启动模式。兼容构建改变USB产品ID，避免桌面系统混用旧设备配置。
 
-MBR、FAT16、根目录文件和单LUN模式提高BIOS兼容性，**无法在没有目标主板实测的情况下保证所有BIOS都识别**。部分厂商刷写工具有特定文件名、介质类型或USB口要求，请按厂商说明验证。
+MBR、FAT32、根目录文件和单LUN模式提高BIOS兼容性，**无法在没有目标主板实测的情况下保证所有BIOS都识别**。部分厂商刷写工具有特定文件名、介质类型或USB口要求，请按厂商说明验证。
 
 正常构建的网页支持键盘、修饰键、Ctrl+Alt+Delete和相对鼠标。Boot Mouse使用三字节报告。失去焦点时网页尝试释放，设备也在默认1.5秒无更新后自动释放；长按由网页周期更新。兼容构建不提供USB键鼠，接口会明确拒绝指令。
 
@@ -169,7 +192,7 @@ flowchart LR
 
 ## 7. 检查与交付范围
 
-GitHub Actions使用ESP-IDF v5.5.2编译正常版和BIOS纯U盘版；还把实际生产sd_media.c与同版本FatFs一起编译到原生测试中，验证MBR/FAT16、中文BIOS文件、双向交接、ISO读取与边界。页面事件、C缓存和大ISO分卷逻辑也有自动测试。
+GitHub Actions使用ESP-IDF v5.5.2编译FAT32正常版、FAT32 BIOS纯U盘版和exFAT正常版；还把实际生产sd_media.c与同版本FatFs一起编译到原生测试中，分别验证MBR/FAT32和MBR/exFAT、中文BIOS文件、双向交接、ISO读取与边界。页面事件、C缓存和大ISO分卷逻辑也有自动测试。
 
 ```bash
 node --test tests/test_ui.js tests/test_split_iso.js

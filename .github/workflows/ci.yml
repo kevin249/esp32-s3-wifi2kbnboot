@@ -11,6 +11,8 @@ jobs:
           /tmp/test-cache
           gcc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -Ifirmware/main tests/test_media_rules.c firmware/main/media_rules.c -o /tmp/test-rules
           /tmp/test-rules
+          gcc -std=c11 -DW2B_EXFAT_ENABLED=1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ifirmware/main tests/test_media_rules.c firmware/main/media_rules.c -o /tmp/test-rules-exfat
+          /tmp/test-rules-exfat
   firmware:
     runs-on: ubuntu-latest
     container: espressif/idf:v5.5.2
@@ -27,6 +29,17 @@ jobs:
             "$IDF_PATH/components/fatfs/src/ff.c" "$IDF_PATH/components/fatfs/src/ffunicode.c" -lpthread -o /tmp/test-sd
           cd /tmp
           timeout 60 ./test-sd
+      - name: exFAT实际SD代码与FatFs集成测试
+        shell: bash
+        run: |
+          sed -E 's/^#define[[:space:]]+FF_FS_EXFAT[[:space:]]+0/#define FF_FS_EXFAT 1/' "$IDF_PATH/components/fatfs/src/ffconf.h" > /tmp/w2b_ffconf.h
+          gcc -std=c11 -D_DEFAULT_SOURCE -D_FILE_OFFSET_BITS=64 -DW2B_EXFAT_ENABLED=1 -include /tmp/w2b_ffconf.h \
+            -Wall -Wextra -Wno-sign-compare -fsanitize=undefined \
+            -Itests/fatfs_shim -Ifirmware/main -I"$IDF_PATH/components/fatfs/src" -I"$IDF_PATH/components/fatfs/diskio" \
+            tests/test_sd_media.c firmware/main/sd_media.c firmware/main/media_rules.c \
+            "$IDF_PATH/components/fatfs/src/ff.c" "$IDF_PATH/components/fatfs/src/ffunicode.c" -lpthread -o /tmp/test-sd-exfat
+          cd /tmp
+          timeout 60 ./test-sd-exfat
       - name: 编译正常双逻辑盘固件
         shell: bash
         working-directory: firmware
@@ -40,6 +53,12 @@ jobs:
         run: |
           . "$IDF_PATH/export.sh"
           idf.py -B build-bios -D IDF_TARGET=esp32s3 -D SDKCONFIG=sdkconfig.bios.ci -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.bios" build
+      - name: 编译exFAT独立固件
+        shell: bash
+        working-directory: firmware
+        run: |
+          . "$IDF_PATH/export.sh"
+          idf.py -B build-exfat -D IDF_TARGET=esp32s3 -D W2B_EXFAT=ON -D SDKCONFIG=sdkconfig.exfat.ci build
       - uses: actions/upload-artifact@v4
         with:
           name: esp32s3-独立固件
@@ -52,3 +71,7 @@ jobs:
             firmware/build-bios/bootloader/bootloader.bin
             firmware/build-bios/partition_table/partition-table.bin
             firmware/build-bios/flasher_args.json
+            firmware/build-exfat/wifi2kbnboot.bin
+            firmware/build-exfat/bootloader/bootloader.bin
+            firmware/build-exfat/partition_table/partition-table.bin
+            firmware/build-exfat/flasher_args.json

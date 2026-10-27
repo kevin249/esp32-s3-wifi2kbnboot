@@ -10,5 +10,5 @@ bool media_range_valid(uint64_t capacity, uint64_t offset, uint32_t length);
 bool media_iso_sizes(const uint64_t *sizes, size_t count, bool split,
                      uint64_t *total);
 bool media_iso_position(uint64_t total, bool split, uint64_t offset,
-                        uint32_t wanted, unsigned *part, uint32_t *within,
+                        uint32_t wanted, unsigned *part, uint64_t *within,
                         uint32_t *length);

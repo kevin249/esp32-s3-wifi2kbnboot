@@ -43,7 +43,13 @@ esp_err_t esp_vfs_fat_sdmmc_mount(const char *path,const sdmmc_host_t *h,const s
     (void)path;(void)h;(void)s;(void)card;assert(!c->format_if_mount_failed);
     backing=open("sd-native.img",O_RDWR|O_CREAT|O_TRUNC,0600);assert(backing>=0);assert(ftruncate(backing,256*1024*1024)==0);
     disks[0]=(ff_diskio_impl_t){native_init,native_init,native_read,native_write,native_ioctl};
-    MKFS_PARM options={.fmt=FM_FAT32};BYTE work[4096];assert(f_mkfs("0:",&options,work,sizeof(work))==FR_OK);
+    MKFS_PARM options={
+#ifdef W2B_EXFAT_ENABLED
+        .fmt=FM_EXFAT
+#else
+        .fmt=FM_FAT32
+#endif
+    };BYTE work[4096];assert(f_mkfs("0:",&options,work,sizeof(work))==FR_OK);
     assert(f_mount(&outer,"0:",1)==FR_OK);return ESP_OK;
 }
 esp_err_t esp_vfs_fat_register_cfg(const esp_vfs_fat_conf_t *conf,FATFS **out){assert(!strcmp(conf->fat_drive,"1:"));*out=&inner;return ESP_OK;}
@@ -62,11 +68,15 @@ int main(void){
     BYTE sector[512];assert(sd_media_read(1,0,sector,512)==ESP_OK);
     assert(sector[510]==0x55&&sector[511]==0xAA);uint32_t partition=le32(sector+454);assert(partition>0);
     assert(sd_media_read(1,(uint64_t)partition*512,sector,512)==ESP_OK);
-    unsigned reserved=sector[14]|(sector[15]<<8), roots=sector[17]|(sector[18]<<8), fats=sector[22]|(sector[23]<<8);
-    uint32_t sectors=sector[19]|(sector[20]<<8);if(!sectors)sectors=le32(sector+32);
-    assert(sector[13]&&fats);
-    uint32_t clusters=(sectors-reserved-sector[16]*fats-(roots*32+511)/512)/sector[13];
-    assert(clusters>=4085&&clusters<65525); /* FAT类型由簇数判断，不依赖可选的卷标签字符串。 */
+#ifdef W2B_EXFAT_ENABLED
+    assert(!memcmp(sector+3,"EXFAT   ",8));
+#else
+    unsigned reserved=sector[14]|(sector[15]<<8), roots=sector[17]|(sector[18]<<8);
+    uint32_t fats=le32(sector+36), sectors=le32(sector+32);
+    assert(sector[13]&&fats&&!roots);
+    uint32_t clusters=(sectors-reserved-sector[16]*fats)/sector[13];
+    assert(clusters>=65525);
+#endif
     assert(!sd_media_web_begin(true));assert(sd_media_owner(false)==ESP_OK);
     assert(sd_media_web_begin(true));assert(sd_media_owner(true)==ESP_ERR_INVALID_STATE);sd_media_web_end();
     BYTE bios[8192];for(unsigned i=0;i<sizeof(bios);++i)bios[i]=i;
@@ -81,6 +91,6 @@ int main(void){
     assert(sd_media_select_iso("test.iso.000")!=ESP_OK);
     sd_media_state(&state);assert(state.iso_present&&state.iso_size==6144);
     assert(sd_media_select_iso("")==ESP_OK);sd_media_state(&state);assert(!state.iso_present);
-    puts("实际生产SD代码通过：MBR/FAT16、双向交接、中文文件名、只读ISO与失败保留");
+    puts("实际生产SD代码通过：MBR及所选文件系统、双向交接、中文文件名、只读ISO与失败保留");
     close(backing);unlink("sd-native.img");return 0;
 }

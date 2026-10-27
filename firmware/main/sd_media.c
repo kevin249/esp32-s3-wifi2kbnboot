@@ -16,6 +16,20 @@
 #include "esp_log.h"
 #endif
 
+#ifdef W2B_EXFAT_ENABLED
+#define FILE_IMAGE "files-exfat.img"
+#define FILE_STAGE "files-exfat.creating"
+#define FILE_FORMAT FM_EXFAT
+#define FILE_FS_TYPE FS_EXFAT
+#define FILE_FATS 1
+#else
+#define FILE_IMAGE "files-fat32.img"
+#define FILE_STAGE "files-fat32.creating"
+#define FILE_FORMAT FM_FAT32
+#define FILE_FS_TYPE FS_FAT32
+#define FILE_FATS 2
+#endif
+
 static SemaphoreHandle_t mutex;
 static sd_media_state_t state;
 static FIL image, iso;
@@ -109,18 +123,18 @@ esp_err_t sd_media_init(void) {
   state.sd_ready = true;
   state.file_size = (uint64_t)CONFIG_W2B_FILE_DISK_MIB * 1024 * 1024;
   char path[64];
-  image_path(path, sizeof(path), "files.img");
+  image_path(path, sizeof(path), FILE_IMAGE);
   FILINFO info;
   bool create = f_stat(path, &info) == FR_NO_FILE;
   if (!create && f_stat(path, &info) != FR_OK)
     return ESP_FAIL;
   if (!create)
     state.file_size = info.fsize;
-  if (state.file_size < 32 * 1024 * 1024 ||
+  if (state.file_size < 64 * 1024 * 1024 ||
       state.file_size > 1024ULL * 1024 * 1024 || state.file_size % 512)
     return ESP_ERR_INVALID_SIZE;
   char stage[64];
-  image_path(stage, sizeof(stage), "files.creating");
+  image_path(stage, sizeof(stage), FILE_STAGE);
   if (create) {
     if (f_open(&image, stage, FA_CREATE_ALWAYS | FA_READ | FA_WRITE) != FR_OK)
       return ESP_FAIL;
@@ -160,15 +174,11 @@ esp_err_t sd_media_init(void) {
     return err;
   if (create) {
     uint8_t work[4096];
-    /* 不设FM_SFD：生成带MBR的普通FAT16磁盘，提高BIOS识别机会。 */
-    MKFS_PARM options = {
-        .fmt = FM_FAT,
-        .n_fat = 2,
-        .n_root = 512,
-        .au_size = state.file_size >= 256ULL * 1024 * 1024 ? 32768 : 4096};
+    /* 不设FM_SFD：生成带MBR的文件盘；exFAT需主板明确支持。 */
+    MKFS_PARM options = {.fmt = FILE_FORMAT, .n_fat = FILE_FATS, .au_size = 0};
     if (f_mkfs(image_drive_name, &options, work, sizeof(work)) != FR_OK)
       return ESP_FAIL;
-    if (f_mount(files_fs, image_drive_name, 1) != FR_OK || files_fs->fs_type != FS_FAT16)
+    if (f_mount(files_fs, image_drive_name, 1) != FR_OK || files_fs->fs_type != FILE_FS_TYPE)
       return ESP_FAIL;
     if (f_mount(NULL, image_drive_name, 0) != FR_OK)
       return ESP_FAIL;
@@ -343,7 +353,8 @@ esp_err_t sd_media_read(unsigned lun, uint64_t address, void *buffer,
     uint8_t *out = buffer;
     while (length && err == ESP_OK) {
       unsigned part;
-      uint32_t within, n;
+      uint64_t within;
+      uint32_t n;
       if (!media_iso_position(state.iso_size, iso_split, address, length, &part,
                               &within, &n)) {
         err = ESP_ERR_INVALID_ARG;

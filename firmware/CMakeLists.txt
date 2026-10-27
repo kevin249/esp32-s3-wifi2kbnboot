@@ -1,3 +1,17 @@
 cmake_minimum_required(VERSION 3.16)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+option(W2B_EXFAT "启用一致的exFAT FatFs配置，并创建exFAT文件盘" OFF)
+if(W2B_EXFAT)
+    # ESP-IDF 5.5.2将exFAT写死为0。所有引用ff.h的编译单元必须使用同一配置，
+    # 否则FIL/FSIZE_t结构不一致。强制先包含完整配置，不修改用户安装的SDK。
+    file(READ "$ENV{IDF_PATH}/components/fatfs/src/ffconf.h" W2B_FFCONF)
+    string(REGEX MATCH "#define[ \t]+FF_FS_EXFAT[ \t]+0" W2B_EXFAT_ANCHOR "${W2B_FFCONF}")
+    if(NOT W2B_EXFAT_ANCHOR)
+        message(FATAL_ERROR "FatFs配置与ESP-IDF 5.5.2不匹配，请先核对SDK版本")
+    endif()
+    string(REPLACE "${W2B_EXFAT_ANCHOR}" "#define FF_FS_EXFAT 1" W2B_FFCONF "${W2B_FFCONF}")
+    file(WRITE "${CMAKE_BINARY_DIR}/w2b_ffconf.h" "${W2B_FFCONF}")
+    add_compile_options(-include "${CMAKE_BINARY_DIR}/w2b_ffconf.h")
+    add_compile_definitions(W2B_EXFAT_ENABLED=1)
+endif()
 project(wifi2kbnboot)

@@ -112,6 +112,11 @@ static esp_err_t manifest(httpd_req_t *r) {
   cJSON_AddStringToObject(transfer, "mode",
                           s.media.host_owner ? "host" : "server");
   cJSON_AddNumberToObject(transfer, "size", s.media.file_size);
+#ifdef W2B_EXFAT_ENABLED
+  cJSON_AddStringToObject(transfer, "filesystem", "exFAT");
+#else
+  cJSON_AddStringToObject(transfer, "filesystem", "FAT32");
+#endif
   cJSON_AddItemToObject(body, "transfer", transfer);
   return json_reply(r, 200, body);
 }

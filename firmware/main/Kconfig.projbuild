@@ -38,8 +38,8 @@ config W2B_SD_D0
     range 0 48
     default 2
 config W2B_FILE_DISK_MIB
-    int "首次创建FAT16文件盘的容量MiB"
-    range 32 1024
+    int "首次创建文件盘的容量MiB"
+    range 64 1024
     default 128
 config W2B_UPLOAD_MIB
     int "单次网页上传上限MiB；大ISO建议分卷"

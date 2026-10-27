@@ -8,7 +8,7 @@
 <section><label>访问令牌 <input id="token" type="password" autocomplete="off"></label><button id="connect">连接设备</button><div id="status" class="notice">请输入访问令牌。</div><p id="message" role="status"></p></section>
 <div class="grid">
 <section><h2>ISO 虚拟光驱</h2><p>浏览 SD 卡 iso 目录，选择后直接挂载，不需要 Ventoy。</p><div class="row"><button id="root">刷新列表</button><button id="up" hidden>上一级</button><button id="eject">弹出 ISO</button></div><small id="path"></small><div id="library"></div><hr><input id="isoUploadFile" type="file" multiple><button id="isoUpload">上传 ISO 或分卷到 SD 卡</button><small>切换 ISO 前先取回文件盘。切换会短暂重连 USB，不要在安装或写入期间操作。</small></section>
-<section><h2>普通文件盘 · 双向传输</h2><p>先在受控主机<strong>安全弹出文件盘</strong>，再取回到设备，随后可上传 BIOS 或下载主机写入的文件。</p><button id="take">从受控主机取回文件盘</button><button id="attach">交还受控主机</button><hr><input id="uploadFile" type="file"><button id="upload">上传到文件盘</button><button id="listFiles">查看文件</button><div id="files"></div><small>文件盘在 SD 卡上自动创建为带 MBR 的 FAT16 镜像。主机使用期间禁止设备修改文件系统；支持根目录文件上传和下载。</small></section>
+<section><h2>普通文件盘 · 双向传输</h2><p>先在受控主机<strong>安全弹出文件盘</strong>，再取回到设备，随后可上传 BIOS 或下载主机写入的文件。</p><button id="take">从受控主机取回文件盘</button><button id="attach">交还受控主机</button><hr><input id="uploadFile" type="file"><button id="upload">上传到文件盘</button><button id="listFiles">查看文件</button><div id="files"></div><small>文件盘在 SD 卡上自动创建为带 MBR 的 FAT32 或 exFAT 镜像。主机使用期间禁止设备修改文件系统；支持根目录文件上传和下载。</small></section>
 <section><h2>键盘模拟</h2><div id="keyboard" tabindex="0">点击此处后输入，按键会发送到受控主机。</div><button id="release">释放全部按键</button><button id="cad">Ctrl + Alt + Delete</button><small>关闭页面或失去焦点时释放按键。组合键可能先被本机系统截获；上方按钮可以发送指定组合键。</small></section>
 <section><h2>鼠标模拟</h2><div id="mouse">在这里移动、点击和滚动</div><button id="mouseRelease">释放鼠标按钮</button><small>相对鼠标模式，支持左键、右键、中键和滚轮。</small></section>
 </div>
@@ -27,7 +27,7 @@ async function perform(action){try{el('message').textContent='处理中……';a
 async function status(){
  const data=await api('/api/manifest');connected=true;
  const transfer=data.transfer;
- el('status').textContent=(data.bios_only?'BIOS兼容构建：仅普通U盘，USB光驱和键鼠已关闭。\n':'')+'SD卡：'+(data.sd_ready?'已挂载':'不可用，请检查接线和FAT32格式')+'\n设备已选择的 ISO：'+(data.iso?data.iso.name:'未挂载')+'\n文件盘：'+
+ el('status').textContent=(data.bios_only?'BIOS兼容构建：仅普通U盘，USB光驱和键鼠已关闭。\n':'')+'SD卡：'+(data.sd_ready?'已挂载':'不可用，请检查接线和FAT32格式')+'\n设备已选择的 ISO：'+(data.iso?data.iso.name:'未挂载')+'\n文件盘格式：'+(transfer.filesystem||'未报告')+'\n文件盘：'+
   (transfer.owned?(transfer.mode==='server'?'等待设备释放，请稍候':'受控主机使用中'):
   transfer.mode==='server'?'设备使用中，可上传或下载':'等待设备领取')+'\n上述为设备状态，USB 重新连接可能稍后完成。';
  return data;
