@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 function page() {
-  const source = fs.readFileSync('backend/index.html', 'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
+  const source = fs.readFileSync('firmware/main/index.html', 'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
   const elements = new Map(), calls = [], intervals = [];
   class Element {
     constructor() { this.events = {}; this.children = []; this.value = 'test-access-token'; }

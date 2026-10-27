@@ -5,10 +5,10 @@
 :root{font:16px system-ui;color:#182a43;background:#f2f5fa}body{max-width:1120px;margin:32px auto;padding:0 20px}h1{margin-bottom:6px}h2{font-size:20px;margin-top:0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}section{background:white;padding:22px;border-radius:14px;margin:18px 0;box-shadow:0 4px 18px #1e345008}.grid section{margin:0}input,button{font:inherit;padding:9px 12px;margin:5px 5px 5px 0;border:1px solid #c6cfdd;border-radius:7px}button{cursor:pointer;background:#f5f8ff;color:#173b73}button:hover{background:#e6efff}button:disabled{opacity:.5;cursor:wait}input[type=password]{width:min(80%,480px)}p,small{line-height:1.7}small,.muted{color:#52647c}.danger{color:#9e2929;background:#fff5f5}.notice{padding:12px;border-radius:8px;background:#edf3ff;white-space:pre-wrap;overflow-wrap:anywhere}#library button,#files button{display:block;text-align:left;max-width:100%;overflow-wrap:anywhere}#keyboard{min-height:48px;border:2px dashed #a5b7ce;padding:16px;border-radius:10px;outline:none}#keyboard:focus{border-color:#2468d4;background:#edf4ff}#mouse{height:150px;display:grid;place-items:center;border:1px solid #bdcde2;border-radius:10px;background:#f1f6fd;touch-action:none;user-select:none;cursor:crosshair}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}@media(max-width:800px){.grid{grid-template-columns:1fr}}#message{min-height:24px}
 </style></head><body>
 <h1>远程键鼠与双逻辑盘</h1><p class="muted">一个只读 ISO 光驱，一个可读写文件盘，通过同一根 USB 连接受控主机。</p>
-<section><label>访问令牌 <input id="token" type="password" autocomplete="off"></label><button id="connect">连接后端</button><div id="status" class="notice">请输入访问令牌。</div><p id="message" role="status"></p></section>
+<section><label>访问令牌 <input id="token" type="password" autocomplete="off"></label><button id="connect">连接设备</button><div id="status" class="notice">请输入访问令牌。</div><p id="message" role="status"></p></section>
 <div class="grid">
-<section><h2>ISO 虚拟光驱</h2><p>浏览服务器配置的 ISO 目录，选择后直接挂载，不需要 Ventoy。</p><div class="row"><button id="root">根目录</button><button id="up">上一级</button><button id="eject">弹出 ISO</button></div><small id="path"></small><div id="library"></div><small>挂载或弹出会让整个 USB 设备短暂重连，键鼠也会受到影响。不要在安装或文件写入期间切换。</small></section>
-<section><h2>普通文件盘 · 双向传输</h2><p>先在受控主机<strong>安全弹出文件盘</strong>，再取回到服务器，随后可上传 BIOS 或下载主机写入的文件。</p><button id="take">从受控主机取回文件盘</button><button id="attach">交还受控主机</button><hr><input id="uploadFile" type="file"><button id="upload">上传到文件盘</button><button id="listFiles">查看文件</button><div id="files"></div><small>文件盘由服务自动创建。主机使用期间禁止服务器修改文件系统；支持根目录文件上传和下载。</small></section>
+<section><h2>ISO 虚拟光驱</h2><p>浏览 SD 卡 iso 目录，选择后直接挂载，不需要 Ventoy。</p><div class="row"><button id="root">刷新列表</button><button id="up" hidden>上一级</button><button id="eject">弹出 ISO</button></div><small id="path"></small><div id="library"></div><hr><input id="isoUploadFile" type="file" multiple><button id="isoUpload">上传 ISO 或分卷到 SD 卡</button><small>切换 ISO 前先取回文件盘。切换会短暂重连 USB，不要在安装或写入期间操作。</small></section>
+<section><h2>普通文件盘 · 双向传输</h2><p>先在受控主机<strong>安全弹出文件盘</strong>，再取回到设备，随后可上传 BIOS 或下载主机写入的文件。</p><button id="take">从受控主机取回文件盘</button><button id="attach">交还受控主机</button><hr><input id="uploadFile" type="file"><button id="upload">上传到文件盘</button><button id="listFiles">查看文件</button><div id="files"></div><small>文件盘在 SD 卡上自动创建为带 MBR 的 FAT16 镜像。主机使用期间禁止设备修改文件系统；支持根目录文件上传和下载。</small></section>
 <section><h2>键盘模拟</h2><div id="keyboard" tabindex="0">点击此处后输入，按键会发送到受控主机。</div><button id="release">释放全部按键</button><button id="cad">Ctrl + Alt + Delete</button><small>关闭页面或失去焦点时释放按键。组合键可能先被本机系统截获；上方按钮可以发送指定组合键。</small></section>
 <section><h2>鼠标模拟</h2><div id="mouse">在这里移动、点击和滚动</div><button id="mouseRelease">释放鼠标按钮</button><small>相对鼠标模式，支持左键、右键、中键和滚轮。</small></section>
 </div>
@@ -27,9 +27,9 @@ async function perform(action){try{el('message').textContent='处理中……';a
 async function status(){
  const data=await api('/api/manifest');connected=true;
  const transfer=data.transfer;
- el('status').textContent='后端已选择的 ISO：'+(data.iso?data.iso.name:'未挂载')+'\n文件盘：'+
+ el('status').textContent=(data.bios_only?'BIOS兼容构建：仅普通U盘，USB光驱和键鼠已关闭。\n':'')+'SD卡：'+(data.sd_ready?'已挂载':'不可用，请检查接线和FAT32格式')+'\n设备已选择的 ISO：'+(data.iso?data.iso.name:'未挂载')+'\n文件盘：'+
   (transfer.owned?(transfer.mode==='server'?'等待设备释放，请稍候':'受控主机使用中'):
-  transfer.mode==='server'?'服务器使用中，可上传或下载':'等待设备领取')+'\n上述为后端状态，USB 重新连接可能稍后完成。';
+  transfer.mode==='server'?'设备使用中，可上传或下载':'等待设备领取')+'\n上述为设备状态，USB 重新连接可能稍后完成。';
  return data;
 }
 async function browse(path=''){
@@ -38,16 +38,16 @@ async function browse(path=''){
  for(const item of data.items){
   const button=document.createElement('button');button.textContent=(item.directory?'目录：':'挂载 ISO：')+item.name;
   button.onclick=()=>perform(async()=>{if(item.directory)await browse(item.path);else{button.disabled=true;try{await post('/api/mount',{path:item.path});await status();}finally{button.disabled=false;}}});
-  el('library').append(button);
+  el('library').append(button);const remove=document.createElement('button');remove.textContent='删除：'+item.name;remove.onclick=()=>perform(async()=>{await post('/api/iso/delete?name='+encodeURIComponent(item.name));await browse();});el('library').append(remove);
  }
- if(!data.items.length)el('library').textContent='目录中没有 ISO 或子目录。';
+ if(!data.items.length)el('library').textContent='目录中没有 ISO，请上传或将文件复制到 SD 卡 iso 目录。';
 }
 async function files(){
  const data=await api('/api/transfer/files');el('files').replaceChildren();
  for(const name of data.files){
   const button=document.createElement('button');button.textContent='下载：'+name;
   button.onclick=()=>perform(async()=>{const blob=await api('/api/transfer/download?name='+encodeURIComponent(name));const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
-  el('files').append(button);
+  el('files').append(button);const remove=document.createElement('button');remove.textContent='删除：'+name;remove.onclick=()=>perform(async()=>{await post('/api/transfer/delete?name='+encodeURIComponent(name));await files();});el('files').append(remove);
  }
  if(!data.files.length)el('files').textContent='根目录暂无文件。';
 }
@@ -59,6 +59,7 @@ el('take').onclick=()=>perform(async()=>{await post('/api/transfer/take');await 
 el('attach').onclick=()=>perform(async()=>{await post('/api/transfer/attach');el('files').replaceChildren();await status();});
 el('listFiles').onclick=()=>perform(files);
 el('upload').onclick=()=>perform(async()=>{const file=el('uploadFile').files[0];if(!file)throw new Error('请选择文件');await api('/api/transfer/upload?name='+encodeURIComponent(file.name),{method:'POST',body:file});await files();await status();});
+el('isoUpload').onclick=()=>perform(async()=>{const files=el('isoUploadFile').files;if(!files.length)throw new Error('请选择 ISO 或分卷');for(let i=0;i<files.length;i++){el('message').textContent='正在上传 '+(i+1)+'/'+files.length+'：'+files[i].name;await api('/api/iso/upload?name='+encodeURIComponent(files[i].name),{method:'POST',body:files[i]});}await browse();});
 setInterval(()=>{if(connected)status().catch(e=>{el('status').textContent=e.message;});},2500);
 
 const pressed=new Set(),modifiers=new Set();let hidChain=Promise.resolve();

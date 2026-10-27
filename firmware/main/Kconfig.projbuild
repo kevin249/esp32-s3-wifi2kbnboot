@@ -1,15 +1,21 @@
-menu "Wi-Fi 虚拟启动盘"
+menu "独立Wi-Fi虚拟启动盘"
+config W2B_WIFI_STA
+    bool "连接现有Wi-Fi；关闭则由ESP32提供热点"
+    default n
+config W2B_AP_SSID
+    string "设备热点名称"
+    default "ESP32-KVM"
+config W2B_AP_PASSWORD
+    string "设备热点密码，8～63字节"
+    default "change-me-12345"
 config W2B_WIFI_SSID
     string "Wi-Fi 名称"
     default "请配置WiFi"
 config W2B_WIFI_PASSWORD
     string "Wi-Fi 密码"
     default ""
-config W2B_BACKEND_URL
-    string "后端地址，不含末尾斜线"
-    default "http://192.168.1.10:8080"
 config W2B_TOKEN
-    string "访问令牌，与后端环境变量一致，至少16字符"
+    string "网页访问令牌，至少16个ASCII字符"
     default "change-this-token-before-use"
 config W2B_CACHE_BLOCKS
     int "16KiB 缓存块数量；32块需要512KiB可用PSRAM"
@@ -19,10 +25,29 @@ config W2B_PREFETCH_BLOCKS
     int "连续读取的预读块数"
     range 0 4
     default 2
-config W2B_HTTP_TIMEOUT_MS
-    int "单次后端请求超时（毫秒）"
-    range 500 15000
-    default 3000
+config W2B_SD_CLK
+    int "SDMMC时钟GPIO"
+    range 0 48
+    default 14
+config W2B_SD_CMD
+    int "SDMMC命令GPIO"
+    range 0 48
+    default 15
+config W2B_SD_D0
+    int "SDMMC数据0 GPIO；仅使用1位模式"
+    range 0 48
+    default 2
+config W2B_FILE_DISK_MIB
+    int "首次创建FAT16文件盘的容量MiB"
+    range 32 1024
+    default 128
+config W2B_UPLOAD_MIB
+    int "单次网页上传上限MiB；大ISO建议分卷"
+    range 1 1024
+    default 1024
+config W2B_BIOS_DISK_ONLY
+    bool "BIOS兼容构建：仅单逻辑盘普通U盘，关闭USB光驱和键鼠"
+    default n
 config W2B_REFRESH_IDLE_MS
     int "刷新前最短读取空闲时间（毫秒）；不代表上层操作完成"
     range 1000 30000

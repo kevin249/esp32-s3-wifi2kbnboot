@@ -1,17 +1,16 @@
-name: 构建与测试
+name: 固件构建与测试
 on: [push, pull_request, workflow_dispatch]
 jobs:
-  backend:
+  software:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: sudo apt-get update && sudo apt-get install -y mtools dosfstools
-      - run: python -m unittest discover -s tests -v
       - run: node --test tests/test_ui.js
-      - run: gcc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -Ifirmware/main tests/test_cache.c firmware/main/block_cache.c -o /tmp/test-cache && /tmp/test-cache
+      - run: |
+          gcc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -Ifirmware/main tests/test_cache.c firmware/main/block_cache.c -o /tmp/test-cache
+          /tmp/test-cache
+          gcc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -Ifirmware/main tests/test_media_rules.c firmware/main/media_rules.c -o /tmp/test-rules
+          /tmp/test-rules
   firmware:
     runs-on: ubuntu-latest
     container: espressif/idf:v5.5.2
@@ -19,18 +18,37 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - name: 编译 ESP32-S3 固件
+      - name: 实际SD代码与FatFs集成测试
+        shell: bash
+        run: |
+          gcc -std=c11 -D_DEFAULT_SOURCE -D_FILE_OFFSET_BITS=64 -Wall -Wextra -Wno-sign-compare -fsanitize=undefined \
+            -Itests/fatfs_shim -Ifirmware/main -I"$IDF_PATH/components/fatfs/src" -I"$IDF_PATH/components/fatfs/diskio" \
+            tests/test_sd_media.c firmware/main/sd_media.c firmware/main/media_rules.c \
+            "$IDF_PATH/components/fatfs/src/ff.c" "$IDF_PATH/components/fatfs/src/ffunicode.c" -lpthread -o /tmp/test-sd
+          cd /tmp
+          timeout 60 ./test-sd
+      - name: 编译正常双逻辑盘固件
         shell: bash
         working-directory: firmware
         run: |
           . "$IDF_PATH/export.sh"
           idf.py set-target esp32s3
           idf.py build
+      - name: 编译BIOS纯U盘兼容固件
+        shell: bash
+        working-directory: firmware
+        run: |
+          . "$IDF_PATH/export.sh"
+          idf.py -B build-bios -D IDF_TARGET=esp32s3 -D SDKCONFIG=sdkconfig.bios.ci -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.bios" build
       - uses: actions/upload-artifact@v4
         with:
-          name: esp32s3-示例固件
+          name: esp32s3-独立固件
           path: |
             firmware/build/wifi2kbnboot.bin
             firmware/build/bootloader/bootloader.bin
             firmware/build/partition_table/partition-table.bin
             firmware/build/flasher_args.json
+            firmware/build-bios/wifi2kbnboot.bin
+            firmware/build-bios/bootloader/bootloader.bin
+            firmware/build-bios/partition_table/partition-table.bin
+            firmware/build-bios/flasher_args.json

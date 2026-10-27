@@ -5,6 +5,8 @@ data/
 *.img
 *.bin
 firmware/build/
+firmware/build-bios/
+firmware/sdkconfig.bios.ci
 firmware/sdkconfig
 firmware/sdkconfig.old
 .DS_Store
