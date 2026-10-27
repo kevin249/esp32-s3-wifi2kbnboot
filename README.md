@@ -7,7 +7,7 @@
 ```mermaid
 flowchart LR
     A["电脑或手机浏览器"] <-->|Wi-Fi| B["ESP32-S3 固件网页"]
-    B <--> C["SD卡 FAT32<br/>iso目录与files.img"]
+    B <--> C["SD卡 FAT32 / exFAT<br/>iso目录与文件盘镜像"]
     C <--> D["16KiB缓存与SD异步任务"]
     D <-->|USB| E["受控主机<br/>只读光驱＋普通FAT U盘"]
     B --> F["USB键鼠"]
@@ -53,7 +53,7 @@ idf.py -p 实际串口 flash monitor
 
 ### FAT32 / exFAT 构建选择
 
-芯片本身不规定文件系统。ESP-IDF v5.5.2内置FatFs默认支持FAT12、FAT16、FAT32，SDK的ffconf.h将exFAT关闭。本项目的exFAT构建通过统一的完整配置头启用它，所有引用FatFs的代码使用同一结构布局，不修改已安装的SDK。NVS、SPIFFS等片内存储机制与这里的USB文件盘格式是不同概念。
+芯片本身不规定文件系统。ESP-IDF v5.5.2内置FatFs默认支持FAT12、FAT16、FAT32，SDK的ffconf.h将exFAT关闭。本项目的exFAT构建将该SDK的fatfs组件复制到构建目录，启用exFAT并作为组件覆盖；库、VFS及调用方使用同一配置与结构布局，不修改已安装的SDK。NVS、SPIFFS等片内存储机制与这里的USB文件盘格式是不同概念。
 
 | 构建 | SD卡格式 | 普通U盘格式 | 建议用途 |
 |---|---|---|---|
